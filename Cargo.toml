@@ -1,0 +1,4 @@
+[package]
+name = "vcd"
+version = "0.1.0"
+authors = ["Kevin Mehall <km@kevinmehall.net>"]
