@@ -5,16 +5,15 @@ use std::str::{ FromStr, from_utf8 };
 use std::num;
 
 use {
-    TimescaleUnit,
     Value,
     ScopeType,
-    VarType,
     IdCode,
     Scope,
     Var,
     ScopeItem,
     SimulationCommand,
-    Header
+    Header,
+    Command
 };
 
 #[derive(Debug)]
@@ -71,25 +70,6 @@ impl From<::std::string::FromUtf8Error> for Error {
 impl From<()> for Error {
     fn from(_: ()) -> Error { Error::Parse("Unknown") }
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Command {
-    Comment(String),
-    Date(String),
-    Version(String),
-    Timescale(u32, TimescaleUnit),
-    ScopeDef(ScopeType, String),
-    Upscope,
-    VarDef(VarType, u32, IdCode, String),
-    Enddefinitions,
-    Timestamp(u64),
-    ChangeScalar(IdCode, Value),
-    ChangeVector(IdCode, Vec<Value>),
-    ChangeReal(IdCode, f32),
-    Begin(SimulationCommand),
-    End(SimulationCommand)
-}
-
 
 fn whitespace_byte(b: u8) -> bool {
     match b {
@@ -168,7 +148,7 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn parse_command(&mut self) -> Result<Command, Error> {
-        use self::Command::*;
+        use super::Command::*;
         use super::SimulationCommand::*;
 
         let mut cmdbuf = [0; 16];
@@ -261,7 +241,7 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn parse_scope(&mut self, scope_type: ScopeType, reference: String) -> Result<Scope, Error> {
-        use self::Command::*;
+        use super::Command::*;
         let mut children = Vec::new();
 
         loop {
@@ -285,7 +265,7 @@ impl<R: io::Read> Parser<R> {
     }
 
     pub fn parse_header(&mut self) -> Result<Header, Error> {
-        use self::Command::*;
+        use super::Command::*;
         let mut header: Header = Default::default();
         loop {
             match self.next() {
@@ -332,9 +312,10 @@ impl<P: io::Read> Iterator for Parser<P> {
 
 #[test]
 fn wikipedia_sample() {
-    use self::Command::*;
+    use super::Command::*;
     use super::SimulationCommand::*;
     use super::Value::*;
+    use super::TimescaleUnit;
 
     let sample = b"
     $date

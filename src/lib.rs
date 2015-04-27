@@ -141,6 +141,24 @@ pub enum ScopeItem {
     Var(Var),
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Command {
+    Comment(String),
+    Date(String),
+    Version(String),
+    Timescale(u32, TimescaleUnit),
+    ScopeDef(ScopeType, String),
+    Upscope,
+    VarDef(VarType, u32, IdCode, String),
+    Enddefinitions,
+    Timestamp(u64),
+    ChangeScalar(IdCode, Value),
+    ChangeVector(IdCode, Vec<Value>),
+    ChangeReal(IdCode, f64),
+    Begin(SimulationCommand),
+    End(SimulationCommand)
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SimulationCommand {
     Dumpall,
