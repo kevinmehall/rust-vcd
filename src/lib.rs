@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::fmt::{self, Display};
 
 pub mod read;
 use read::Error;
@@ -23,6 +24,20 @@ impl FromStr for TimescaleUnit {
             "fs" => Ok(FS),
             _ => Err(Error::Parse("Invalid timescale unit"))
         }
+    }
+}
+
+impl Display for TimescaleUnit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::TimescaleUnit::*;
+        write!(f, "{}", match *self {
+            S  => "s",
+            MS => "ms",
+            US => "us",
+            NS => "ns",
+            PS => "ps",
+            FS => "fs",
+        })
     }
 }
 
@@ -54,6 +69,18 @@ impl FromStr for Value {
     }
 }
 
+impl Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Value::*;
+        write!(f, "{}", match *self {
+            V0  => "0",
+            V1 => "1",
+            X => "x",
+            Z => "z",
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ScopeType {
     Module,
@@ -78,6 +105,19 @@ impl FromStr for ScopeType {
     }
 }
 
+impl Display for ScopeType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::ScopeType::*;
+        write!(f, "{}", match *self {
+            Module => "module",
+            Task  => "task",
+            Function => "function",
+            Begin  => "begin",
+            Fork  => "fork",
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VarType {
     Wire,
@@ -94,6 +134,15 @@ impl FromStr for VarType {
     }
 }
 
+impl Display for VarType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::VarType::*;
+        write!(f, "{}", match *self {
+            Wire => "wire",
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct IdCode(u32);
 
@@ -101,7 +150,7 @@ impl IdCode {
     fn new(v: &[u8]) -> Result<IdCode, Error> {
         let mut result = 0u32;
         for &i in v {
-            result = result * 128 + (i - b'!') as u32;
+            result = result << 7 | ((i - b'!') as u32);
         }
         Ok(IdCode(result))
     }
@@ -111,6 +160,18 @@ impl FromStr for IdCode {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         IdCode::new(s.as_bytes())
+    }
+}
+
+impl Display for IdCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut i = self.0;
+        loop {
+            try!(write!(f, "{}", ((i&0x7f) as u8 + b'!') as char));
+            i = i >> 7;
+            if i == 0 { break; }
+        }
+        Ok(())
     }
 }
 
@@ -165,6 +226,18 @@ pub enum SimulationCommand {
     Dumpoff,
     Dumpon,
     Dumpvars,
+}
+
+impl Display for SimulationCommand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::SimulationCommand::*;
+        write!(f, "{}", match *self {
+            Dumpall  => "dumpall",
+            Dumpoff  => "dumpoff",
+            Dumpon   => "dumpon",
+            Dumpvars => "dumpvars",
+        })
+    }
 }
 
 #[derive(Debug, Default)]
