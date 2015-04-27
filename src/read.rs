@@ -295,7 +295,7 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(Version(s))) => { header.version = Some(s); }
                 Some(Ok(Timescale(val, unit))) => { header.timescale = Some((val, unit)); }
                 Some(Ok(ScopeDef(tp, id))) => {
-                    header.module = Some(try!(self.parse_scope(tp, id)));
+                    header.scope = try!(self.parse_scope(tp, id));
                 }
                 Some(Ok(_)) => {
                     return Err(Error::Parse("Unexpected command in header"))

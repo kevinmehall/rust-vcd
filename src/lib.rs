@@ -121,6 +121,12 @@ pub struct Scope {
     pub children: Vec<ScopeItem>
 }
 
+impl Default for Scope {
+    fn default() -> Scope {
+        Scope { scope_type: ScopeType::Module, identifier: "".to_string(), children: Vec::new() }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Var {
     pub var_type: VarType,
@@ -149,5 +155,5 @@ pub struct Header {
     pub date: Option<String>,
     pub version: Option<String>,
     pub timescale: Option<(u32, TimescaleUnit)>,
-    pub module: Option<Scope>,
+    pub scope: Scope,
 }
