@@ -2,3 +2,7 @@
 name = "vcd"
 version = "0.1.0"
 authors = ["Kevin Mehall <km@kevinmehall.net>"]
+description = "Read and write VCD (Value Change Dump) files"
+license = "MIT"
+keywords = ["encoding", "parser", "vcd"]
+repository = "https://github.com/kevinmehall/rust-vcd"
