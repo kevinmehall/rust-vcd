@@ -163,6 +163,10 @@ impl FromStr for IdCode {
     }
 }
 
+impl From<u32> for IdCode {
+    fn from(i: u32) -> IdCode { IdCode(i) }
+}
+
 impl Display for IdCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut i = self.0;
