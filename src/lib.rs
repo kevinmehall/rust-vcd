@@ -1,10 +1,11 @@
 use std::str::FromStr;
 use std::fmt::{self, Display};
 
-pub mod read;
-use read::Error;
+mod read;
+pub use read::{Error, Parser};
 
-pub mod write;
+mod write;
+pub use write::Writer;
 
 /// A unit of time for the `$timescale` command
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

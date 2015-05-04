@@ -84,7 +84,7 @@ impl<R: io::Read> Parser<R> {
     ///
     /// ```
     /// let buf = b"...";
-    /// let mut vcd = vcd::read::Parser::new(&buf[..]);
+    /// let mut vcd = vcd::Parser::new(&buf[..]);
     /// ```
     pub fn new(r: R) -> Parser<R> {
         Parser {

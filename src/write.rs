@@ -24,7 +24,7 @@ impl<'s> Writer<'s> {
     ///
     /// ```
     /// let mut buf = Vec::new();
-    /// let mut vcd = vcd::write::Writer::new(&mut buf);
+    /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
     pub fn new(writer: &mut io::Write) -> Writer {
         Writer { writer: writer }
