@@ -6,6 +6,7 @@ use read::Error;
 
 pub mod write;
 
+/// A unit of time for the `$timescale` command
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TimescaleUnit {
     S, MS, US, NS, PS, FS,
@@ -41,11 +42,19 @@ impl Display for TimescaleUnit {
     }
 }
 
+/// A VCD scalar value
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Value {
+    /// Logic high (prefixed with `V` to make a valid Rust identifier
     V0,
+
+    /// Logic low (prefixed with `V` to make a valid Rust identifier
     V1,
+
+    /// An uninitialized or unknown value
     X,
+
+    /// The "high-impedance" value
     Z,
 }
 
@@ -81,6 +90,7 @@ impl Display for Value {
     }
 }
 
+/// A type of scope, as used in the `$scope` command
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ScopeType {
     Module,
@@ -118,6 +128,7 @@ impl Display for ScopeType {
     }
 }
 
+/// A type of variable, as used in the `$var` command
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VarType {
     Wire,
@@ -143,6 +154,7 @@ impl Display for VarType {
     }
 }
 
+/// An ID used within the file to refer to a particular variable.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct IdCode(u32);
 
@@ -179,6 +191,7 @@ impl Display for IdCode {
     }
 }
 
+/// Information on a VCD scope as represented by a `$scope` command and its children
 #[derive(Debug, Clone)]
 pub struct Scope {
     pub scope_type: ScopeType,
@@ -192,6 +205,7 @@ impl Default for Scope {
     }
 }
 
+/// Information on a VCD variable as represented by a `$var` command.
 #[derive(Debug, Clone)]
 pub struct Var {
     pub var_type: VarType,
@@ -200,30 +214,62 @@ pub struct Var {
     pub reference: String,
 }
 
+/// An item in a scope -- either a child scope or a variable
 #[derive(Debug, Clone)]
 pub enum ScopeItem {
     Scope(Scope),
     Var(Var),
 }
 
+/// An element in a VCD file
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
+    /// A `$comment` command
     Comment(String),
+
+    /// A `$date` command
     Date(String),
+
+    /// A `$version` command
     Version(String),
+
+    /// A `$timescale` command
     Timescale(u32, TimescaleUnit),
+
+    /// A `$scope` command
     ScopeDef(ScopeType, String),
+
+    /// An `$upscope` command
     Upscope,
+
+    /// A `$var` command
     VarDef(VarType, u32, IdCode, String),
+
+    /// An `$enddefinitions` command
     Enddefinitions,
+
+    /// A `#xxx` timestamp
     Timestamp(u64),
+
+    /// A `0a` change to a scalar variable
     ChangeScalar(IdCode, Value),
+
+    /// A `b0000 a` change to a vector variable
     ChangeVector(IdCode, Vec<Value>),
+
+    /// A `r1.234 a` change to a real variable
     ChangeReal(IdCode, f64),
+
+    /// A beginning of a simulation command. Unlike header commands, which are parsed atomically,
+    /// simulation commands emit a Begin, followed by the data changes within them, followed by
+    /// End.
     Begin(SimulationCommand),
+
+    /// An end of a simulation command.
     End(SimulationCommand)
 }
 
+/// A simulation command type, used in Command::Begin and Command::End
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SimulationCommand {
     Dumpall,
@@ -244,6 +290,7 @@ impl Display for SimulationCommand {
     }
 }
 
+/// Structure containing the data from the header of a VCD file
 #[derive(Debug, Default)]
 pub struct Header {
     pub comment: Option<String>,

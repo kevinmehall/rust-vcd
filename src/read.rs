@@ -73,12 +73,19 @@ fn whitespace_byte(b: u8) -> bool {
     }
 }
 
+/// VCD parser. Wraps an `io::Read` and acts as an iterator of `Command`s.
 pub struct Parser<R: io::Read> {
     bytes_iter: io::Bytes<R>,
     simulation_command: Option<SimulationCommand>,
 }
 
 impl<R: io::Read> Parser<R> {
+    /// Create a parser wrapping an `io::Read`
+    ///
+    /// ```
+    /// let buf = b"...";
+    /// let mut vcd = vcd::read::Parser::new(&buf[..]);
+    /// ```
     pub fn new(r: R) -> Parser<R> {
         Parser {
             bytes_iter: r.bytes(),
@@ -269,6 +276,8 @@ impl<R: io::Read> Parser<R> {
         Ok(Scope { scope_type: scope_type, identifier: reference, children: children })
     }
 
+    /// Parse the header of a VCD file into a `Header` struct. After returning, the stream has been
+    /// read just past the `$enddefinitions` command and can be iterated to obtain the data.
     pub fn parse_header(&mut self) -> Result<Header, Error> {
         use super::Command::*;
         let mut header: Header = Default::default();
