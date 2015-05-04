@@ -329,7 +329,7 @@ fn wikipedia_sample() {
     use super::Command::*;
     use super::SimulationCommand::*;
     use super::Value::*;
-    use super::{ TimescaleUnit, IdCode };
+    use super::{ TimescaleUnit, IdCode, VarType, ScopeType };
 
     let sample = b"
     $date
@@ -382,6 +382,17 @@ fn wikipedia_sample() {
     assert_eq!(header.date, Some("Date text.".to_string()));
     assert_eq!(header.version, Some("VCD generator text.".to_string()));
     assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
+
+    assert_eq!(&header.scope.identifier[..], "logic");
+    assert_eq!(header.scope.scope_type, ScopeType::Module);
+
+    if let ScopeItem::Var(ref v) = header.scope.children[0] {
+        assert_eq!(v.var_type, VarType::Wire);
+        assert_eq!(&v.reference[..], "data");
+        assert_eq!(v.size, 8);
+    } else {
+        panic!("Expected Var, found {:?}", header.scope.children[0]);
+    }
 
     let expected = &[
         Begin(Dumpvars),
