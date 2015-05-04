@@ -7,7 +7,6 @@ use std::num;
 use {
     Value,
     ScopeType,
-    IdCode,
     Scope,
     Var,
     ScopeItem,
@@ -67,10 +66,6 @@ impl From<::std::string::FromUtf8Error> for Error {
     fn from(_: ::std::string::FromUtf8Error) -> Error { Error::Parse("Invalid UTF8") }
 }
 
-impl From<()> for Error {
-    fn from(_: ()) -> Error { Error::Parse("Unknown") }
-}
-
 fn whitespace_byte(b: u8) -> bool {
     match b {
         b' ' | b'\n' | b'\r' | b'\t' => true,
@@ -116,6 +111,18 @@ impl<R: io::Read> Parser<R> {
             len += 1;
         }
         Ok(&buf[..len])
+    }
+
+    fn read_token_string(&mut self) -> Result<String, Error> {
+        let mut r = Vec::new();
+        loop {
+            let b = try!(self.read_byte());
+            if whitespace_byte(b) {
+                if r.len() > 0 { break; } else { continue; }
+            }
+            r.push(b);
+        }
+        Ok(try!(String::from_utf8(r)))
     }
 
     fn read_token_parse<E, T>(&mut self) -> Result<T, Error> where Error: From<E>, T: FromStr<Err=E> {
@@ -171,7 +178,7 @@ impl<R: io::Read> Parser<R> {
             }
             b"scope" => {
                 let scope_type = try!(self.read_token_parse());
-                let identifier = try!(self.read_token_parse());
+                let identifier = try!(self.read_token_string());
                 try!(self.read_command_end());
                 Ok(ScopeDef(scope_type, identifier))
             }
@@ -183,7 +190,7 @@ impl<R: io::Read> Parser<R> {
                 let var_type = try!(self.read_token_parse());
                 let size = try!(self.read_token_parse());
                 let code = try!(self.read_token_parse());
-                let reference = try!(self.read_token_parse());
+                let reference = try!(self.read_token_string());
                 try!(self.read_command_end());
                 Ok(VarDef(var_type, size, code, reference))
             }
@@ -228,15 +235,13 @@ impl<R: io::Read> Parser<R> {
     fn parse_vector(&mut self) -> Result<Command, Error> {
         let mut buf = [0; 32];
         let val = try!(try!(self.read_token(&mut buf)).iter().cloned().map(Value::parse).collect());
-        let id = try!(IdCode::new(try!(self.read_token(&mut buf))));
+        let id = try!(self.read_token_parse());
         Ok(Command::ChangeVector(id, val))
     }
 
     fn parse_real(&mut self) -> Result<Command, Error> {
-        let mut buf = [0; 32];
-        // work around https://github.com/rust-lang/rust/issues/24748
-        let val = try!(try!(from_utf8(try!(self.read_token(&mut buf)))).parse().or(Err(Error::Parse("Invalid number"))));
-        let id = try!(IdCode::new(try!(self.read_token(&mut buf))));
+        let val = try!(self.read_token_parse());
+        let id = try!(self.read_token_parse());
         Ok(Command::ChangeReal(id, val))
     }
 
@@ -315,7 +320,7 @@ fn wikipedia_sample() {
     use super::Command::*;
     use super::SimulationCommand::*;
     use super::Value::*;
-    use super::TimescaleUnit;
+    use super::{ TimescaleUnit, IdCode };
 
     let sample = b"
     $date
