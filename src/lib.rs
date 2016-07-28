@@ -132,7 +132,23 @@ impl Display for ScopeType {
 /// A type of variable, as used in the `$var` command
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VarType {
+    //Event,
+    //Integer,
+    //Parameter,
+    Real,
+    Reg,
+    //Supply0,
+    //Supply1,
+    //Time,
+    //Tri,
+    //Triant,
+    //Trior,
+    //Trireg,
+    //Tri0,
+    //Tri1,
+    //Wand,
     Wire,
+    //Wor,
 }
 
 impl FromStr for VarType {
@@ -141,7 +157,9 @@ impl FromStr for VarType {
         use self::VarType::*;
         match s {
             "wire" => Ok(Wire),
-            _ => Err(Error::Parse("Invalid scope type"))
+            "reg" => Ok(Reg),
+            "real" => Ok(Real),
+            _ => Err(Error::Parse("Invalid var type"))
         }
     }
 }
@@ -151,6 +169,8 @@ impl Display for VarType {
         use self::VarType::*;
         write!(f, "{}", match *self {
             Wire => "wire",
+            Reg => "reg",
+            Real => "real",
         })
     }
 }
@@ -260,6 +280,9 @@ pub enum Command {
 
     /// A `r1.234 a` change to a real variable
     ChangeReal(IdCode, f64),
+
+    /// A `sSTART a` change to a (real?) variable
+    ChangeString(IdCode, String),
 
     /// A beginning of a simulation command. Unlike header commands, which are parsed atomically,
     /// simulation commands emit a Begin, followed by the data changes within them, followed by

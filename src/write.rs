@@ -120,6 +120,11 @@ impl<'s> Writer<'s> {
         writeln!(self.writer, "r{} {}", v, id)
     }
 
+    /// Write a change to a string variable
+    pub fn change_string(&mut self, id: IdCode, v: &str) -> io::Result<()> {
+        writeln!(self.writer, "s{} {}", v, id)
+    }
+
     /// Write the beginning of a simulation command
     pub fn begin(&mut self, c: SimulationCommand) -> io::Result<()> {
         writeln!(self.writer, "${}", c)
@@ -146,6 +151,7 @@ impl<'s> Writer<'s> {
             ChangeScalar(i, v) => self.change_scalar(i, v),
             ChangeVector(i, ref v) => self.change_vector(i, &v[..]),
             ChangeReal(i, v) => self.change_real(i, v),
+            ChangeString(i, ref v) => self.change_string(i, v),
             Begin(c) => self.begin(c),
             End(_) => self.end(),
         }
