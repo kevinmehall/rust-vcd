@@ -252,6 +252,12 @@ impl<R: io::Read> Parser<R> {
         Ok(Command::ChangeReal(id, val))
     }
 
+    fn parse_string(&mut self) -> Result<Command, Error> {
+        let val = try!(self.read_token_string());
+        let id = try!(self.read_token_parse());
+        Ok(Command::ChangeString(id, val))
+    }
+
     fn parse_scope(&mut self, scope_type: ScopeType, reference: String) -> Result<Scope, Error> {
         use super::Command::*;
         let mut children = Vec::new();
@@ -317,6 +323,7 @@ impl<P: io::Read> Iterator for Parser<P> {
                 b'0' | b'1' | b'z' | b'Z' | b'x' | b'X' => return Some(self.parse_scalar(b)),
                 b'b' | b'B' => return Some(self.parse_vector()),
                 b'r' | b'R' => return Some(self.parse_real()),
+                b's' | b'S' => return Some(self.parse_string()),
                 _ => panic!("Unexpected character {}", b)
             }
         }
