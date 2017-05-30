@@ -324,7 +324,7 @@ impl<P: io::Read> Iterator for Parser<P> {
                 b'b' | b'B' => return Some(self.parse_vector()),
                 b'r' | b'R' => return Some(self.parse_real()),
                 b's' | b'S' => return Some(self.parse_string()),
-                _ => panic!("Unexpected character {}", b)
+                _ => return Some(Err(Error::Parse("Unexpected character at start of command")))
             }
         }
         None
