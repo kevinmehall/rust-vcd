@@ -6,3 +6,6 @@ description = "Read and write VCD (Value Change Dump) files"
 license = "MIT"
 keywords = ["encoding", "parser", "vcd"]
 repository = "https://github.com/kevinmehall/rust-vcd"
+
+[badges]
+travis-ci = { repository = "kevinmehall/rust-vcd" }
