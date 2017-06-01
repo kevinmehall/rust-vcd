@@ -179,11 +179,16 @@ impl Display for VarType {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct IdCode(u32);
 
+const ID_CHAR_MIN: u8 = b'!';
+const ID_CHAR_MAX: u8 = b'~';
+const NUM_ID_CHARS: u32 = (ID_CHAR_MAX - ID_CHAR_MIN + 1) as u32;
+
 impl IdCode {
     fn new(v: &[u8]) -> Result<IdCode, Error> {
         let mut result = 0u32;
         for &i in v {
-            result = result << 7 | ((i - b'!') as u32);
+            if i < ID_CHAR_MIN || i > ID_CHAR_MAX { return Err(Error::Parse("Invalid ID character")) }
+            result = result * NUM_ID_CHARS + ((i - ID_CHAR_MIN) as u32);
         }
         Ok(IdCode(result))
     }
@@ -204,8 +209,8 @@ impl Display for IdCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut i = self.0;
         loop {
-            try!(write!(f, "{}", ((i&0x7f) as u8 + b'!') as char));
-            i = i >> 7;
+            try!(write!(f, "{}", ((i % NUM_ID_CHARS) as u8 + ID_CHAR_MIN) as char));
+            i = i / NUM_ID_CHARS;
             if i == 0 { break; }
         }
         Ok(())
