@@ -43,6 +43,24 @@ impl Display for TimescaleUnit {
     }
 }
 
+impl TimescaleUnit {
+    pub fn divisor(&self) -> u64 {
+        use self::TimescaleUnit::*;
+        match *self {
+            S  => 1,
+            MS => 1_000,
+            US => 1_000_000,
+            NS => 1_000_000_000,
+            PS => 1_000_000_000_000,
+            FS => 1_000_000_000_000_000,
+        }
+    }
+
+    pub fn fraction(&self) -> f64 {
+        1.0 / (self.divisor() as f64)
+    }
+ }
+
 /// A VCD scalar value
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Value {
