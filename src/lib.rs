@@ -1,6 +1,91 @@
 //! This crate reads and writes [VCD (Value Change Dump)][wp] files, a common format used with
 //! logic analyzers, HDL simulators, and other EDA tools.
 //! [wp]: https://en.wikipedia.org/wiki/Value_change_dump
+//!
+//! ## Example
+//!
+//! ```
+//! use std::io;
+//! use std::io::ErrorKind::InvalidInput;
+//! use vcd::{ self, Value, TimescaleUnit, SimulationCommand };
+//!
+//! /// Write out a clocked signal to a VCD file
+//! fn write_clocked_vcd(shift_reg: u32, w: &mut io::Write) -> io::Result<()> {
+//!   let mut writer = vcd::Writer::new(w);
+//!
+//!   // Write the header
+//!   writer.timescale(1, TimescaleUnit::US)?;
+//!   writer.add_module("top")?;
+//!   let clock = writer.add_wire(1, "clock")?;
+//!   let data = writer.add_wire(1, "data")?;
+//!   writer.upscope()?;
+//!   writer.enddefinitions()?;
+//!
+//!   // Write the initial values
+//!   writer.begin(SimulationCommand::Dumpvars)?;
+//!   writer.change_scalar(clock, Value::V0)?;
+//!   writer.change_scalar(data, Value::V0)?;
+//!   writer.end()?;
+//!
+//!   // Write the data values
+//!   let mut t = 0;
+//!   for i in 0..32 {
+//!     t += 4;
+//!     writer.timestamp(t)?;
+//!     writer.change_scalar(clock, Value::V1)?;
+//!     writer.change_scalar(data, ((shift_reg >> i) & 1) != 0)?;
+//!
+//!     t += 4;
+//!     writer.timestamp(t)?;
+//!     writer.change_scalar(clock, Value::V0)?;
+//!   }
+//!   Ok(())
+//! }
+//!
+//! /// Parse a VCD file containing a clocked signal and decode the signal
+//! fn read_clocked_vcd(r: &mut io::Read) -> Result<u32, vcd::Error> {
+//!    let mut parser = vcd::Parser::new(r);
+//!
+//!    // Parse the header and find the wires
+//!    let header = parser.parse_header()?;
+//!    let clock = header.scope.find_var("clock")
+//!       .ok_or_else(|| io::Error::new(InvalidInput, "no clock wire"))?.code;
+//!    let data = header.scope.find_var("data")
+//!       .ok_or_else(|| io::Error::new(InvalidInput, "no data wire"))?.code;
+//!
+//!    // Iterate through the remainder of the file and decode the data
+//!    let mut shift_reg = 0;
+//!    let mut data_val = Value::X;
+//!    let mut clock_val = Value::X;
+//!
+//!    for command_result in parser {
+//!      use vcd::Command::*;
+//!      let command = command_result?;
+//!      match command {
+//!        ChangeScalar(i, v) if i == clock => {
+//!          if clock_val == Value::V1 && v == Value::V0 { // falling edge on clock
+//!             let shift_bit = match data_val { Value::V1 => (1 << 31), _ => 0 };
+//!             shift_reg = (shift_reg >> 1) | shift_bit;
+//!          }
+//!          clock_val = v;
+//!        }
+//!        ChangeScalar(i, v) if i == data => {
+//!          data_val = v;
+//!        }
+//!        _ => (),
+//!      }
+//!    }
+//!
+//!    Ok(shift_reg)
+//! }
+//!
+//! let mut buf = Vec::new();
+//! let data = 0xC0DE1234;
+//! write_clocked_vcd(data, &mut buf).expect("Failed to write");
+//! let value = read_clocked_vcd(&mut &buf[..]).expect("Failed to read");
+//! assert_eq!(value, data);
+//! ```
+
 use std::str::FromStr;
 use std::fmt::{self, Display};
 
@@ -97,6 +182,13 @@ impl FromStr for Value {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Value::parse(*s.as_bytes().get(0).unwrap_or(&b' '))
+    }
+}
+
+impl From<bool> for Value {
+    /// `true` converts to `V1`, `false` to `V0`
+    fn from(v: bool) -> Value {
+        if v { Value::V1 } else { Value::V0 }
     }
 }
 
@@ -239,11 +331,25 @@ impl Display for IdCode {
 }
 
 /// Information on a VCD scope as represented by a `$scope` command and its children
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
     pub scope_type: ScopeType,
     pub identifier: String,
     pub children: Vec<ScopeItem>
+}
+
+impl Scope {
+    /// Look up a variable by reference
+    pub fn find_var<'a>(&'a self, reference: &str) -> Option<&'a Var> {
+        for c in &self.children {
+            if let &ScopeItem::Var(ref v) = c {
+                if v.reference == reference {
+                    return Some(v)
+                }
+            }
+        }
+        None
+    }
 }
 
 impl Default for Scope {
@@ -253,7 +359,7 @@ impl Default for Scope {
 }
 
 /// Information on a VCD variable as represented by a `$var` command.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Var {
     pub var_type: VarType,
     pub size: u32,
@@ -262,7 +368,7 @@ pub struct Var {
 }
 
 /// An item in a scope -- either a child scope or a variable
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScopeItem {
     Scope(Scope),
     Var(Var),
@@ -319,7 +425,7 @@ pub enum Command {
     End(SimulationCommand)
 }
 
-/// A simulation command type, used in Command::Begin and Command::End
+/// A simulation command type, used in `Command::Begin` and `Command::End`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SimulationCommand {
     Dumpall,

@@ -17,6 +17,8 @@ use {
 /// Struct wrapping an `io::Write` with methods for writing VCD commands and data.
 pub struct Writer<'w> {
 	writer: &'w mut io::Write,
+    next_id_code: IdCode,
+    scope_depth: usize,
 }
 
 impl<'s> Writer<'s> {
@@ -27,7 +29,7 @@ impl<'s> Writer<'s> {
     /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
     pub fn new(writer: &mut io::Write) -> Writer {
-        Writer { writer: writer }
+        Writer { writer: writer, next_id_code: IdCode(0), scope_depth: 0 }
     }
 
     /// Writes a complete header with the fields from a `Header` struct from the parser.
@@ -62,11 +64,21 @@ impl<'s> Writer<'s> {
 
     /// Writes a `$scope` command.
     pub fn scope_def(&mut self, t: ScopeType, i: &str) -> io::Result<()> {
+        self.scope_depth += 1;
         writeln!(self.writer, "$scope {} {} $end", t, i)
+    }
+
+    /// Writes a `$scope` command for a module.
+    ///
+    /// Convenience wrapper around `scope_def`.
+    pub fn add_module(&mut self, identifier: &str) -> io::Result<()> {
+        self.scope_def(ScopeType::Module, identifier)
     }
 
     /// Writes an `$upscope` command.
     pub fn upscope(&mut self) -> io::Result<()> {
+        debug_assert!(self.scope_depth > 0, "Generating invalid VCD: upscope without a matching scope");
+        self.scope_depth -= 1;
         writeln!(self.writer, "$upscope $end")
     }
 
@@ -83,18 +95,39 @@ impl<'s> Writer<'s> {
         self.upscope()
     }
 
-    /// Write a `$var` command
-    pub fn var_def(&mut self, t: VarType, s: u32, i: IdCode, r: &str) -> io::Result<()> {
-        writeln!(self.writer, "$var {} {} {} {} $end", t, s, i, r)
+    /// Writes a `$var` command with a specified id.
+    pub fn var_def(&mut self, var_type: VarType, width: u32, id: IdCode, reference: &str) -> io::Result<()> {
+        debug_assert!(self.scope_depth > 0, "Generating invalid VCD: variable must be in a scope");
+        if id.0 >= self.next_id_code.0 {
+            self.next_id_code.0 = id.0 + 1
+        }
+        writeln!(self.writer, "$var {} {} {} {} $end", var_type, width, id, reference)
     }
 
-    /// Write a `$var` command from a `Var` structure
+    /// Writes a `$var` command with the next available ID, returning the assigned ID.
+    ///
+    /// Convenience wrapper around `var_def`.
+    pub fn add_var(&mut self, var_type: VarType, width: u32, reference: &str) -> io::Result<IdCode> {
+        let id = self.next_id_code;
+        self.var_def(var_type, width, id, reference)?;
+        Ok(id)
+    }
+
+    /// Adds a `$var` for a wire with the next available ID, returning the assigned ID.
+    ///
+    /// Convenience wrapper around `add_var`.
+    pub fn add_wire(&mut self, width: u32, reference: &str) -> io::Result<IdCode> {
+        self.add_var(VarType::Wire, width, reference)
+    }
+
+    /// Writes a `$var` command from a `Var` structure from the parser.
     pub fn var(&mut self, v: &Var) -> io::Result<()> {
         self.var_def(v.var_type, v.size, v.code, &v.reference[..])
     }
 
     /// Writes a `$enddefinitions` command to end the header.
     pub fn enddefinitions(&mut self) -> io::Result<()> {
+        debug_assert!(self.scope_depth == 0, "Generating invalid VCD: {} scopes must be closed with $upscope before $enddefinitions");
         writeln!(self.writer, "$enddefinitions $end")
     }
 
@@ -103,9 +136,9 @@ impl<'s> Writer<'s> {
         writeln!(self.writer, "#{}", ts)
     }
 
-    /// Write a change to a scalar variable
-    pub fn change_scalar(&mut self, id: IdCode, v: Value) -> io::Result<()> {
-        writeln!(self.writer, "{}{}", v, id)
+    /// Writes a change to a scalar variable.
+    pub fn change_scalar<V: Into<Value>>(&mut self, id: IdCode, v: V) -> io::Result<()> {
+        writeln!(self.writer, "{}{}", v.into(), id)
     }
 
     /// Writes a change to a vector variable.
