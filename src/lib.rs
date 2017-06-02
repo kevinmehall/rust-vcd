@@ -1,3 +1,6 @@
+//! This crate reads and writes [VCD (Value Change Dump)][wp] files, a common format used with
+//! logic analyzers, HDL simulators, and other EDA tools.
+//! [wp]: https://en.wikipedia.org/wiki/Value_change_dump
 use std::str::FromStr;
 use std::fmt::{self, Display};
 
@@ -64,10 +67,10 @@ impl TimescaleUnit {
 /// A VCD scalar value
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Value {
-    /// Logic high (prefixed with `V` to make a valid Rust identifier
+    /// Logic high (prefixed with `V` to make a valid Rust identifier)
     V0,
 
-    /// Logic low (prefixed with `V` to make a valid Rust identifier
+    /// Logic low (prefixed with `V` to make a valid Rust identifier)
     V1,
 
     /// An uninitialized or unknown value
