@@ -43,7 +43,7 @@
 //! }
 //!
 //! /// Parse a VCD file containing a clocked signal and decode the signal
-//! fn read_clocked_vcd(r: &mut io::Read) -> Result<u32, vcd::Error> {
+//! fn read_clocked_vcd(r: &mut io::Read) -> io::Result<u32> {
 //!    let mut parser = vcd::Parser::new(r);
 //!
 //!    // Parse the header and find the wires
@@ -88,9 +88,11 @@
 
 use std::str::FromStr;
 use std::fmt::{self, Display};
+use std::error::Error;
+use std::io;
 
 mod read;
-pub use read::{Error, Parser};
+pub use read::Parser;
 
 mod write;
 pub use write::Writer;
@@ -101,8 +103,20 @@ pub enum TimescaleUnit {
     S, MS, US, NS, PS, FS,
 }
 
+#[derive(Debug)]
+pub struct InvalidData(&'static str);
+impl Display for InvalidData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.0.fmt(f) }
+}
+impl Error for InvalidData {
+    fn description(&self) -> &str { self.0 }
+}
+impl From<InvalidData> for io::Error {
+    fn from(e: InvalidData) -> io::Error { io::Error::new(io::ErrorKind::InvalidData, e.0) }
+}
+
 impl FromStr for TimescaleUnit {
-    type Err = Error;
+    type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::TimescaleUnit::*;
         match s {
@@ -112,7 +126,7 @@ impl FromStr for TimescaleUnit {
             "ns" => Ok(NS),
             "ps" => Ok(PS),
             "fs" => Ok(FS),
-            _ => Err(Error::Parse("Invalid timescale unit"))
+            _ => Err(InvalidData("invalid timescale unit"))
         }
     }
 }
@@ -166,20 +180,20 @@ pub enum Value {
 }
 
 impl Value {
-    fn parse(v: u8) -> Result<Value, Error> {
+    fn parse(v: u8) -> Result<Value, InvalidData> {
         use Value::*;
         match v {
             b'0' => Ok(V0),
             b'1' => Ok(V1),
             b'x' | b'X' => Ok(X),
             b'z' | b'Z' => Ok(Z),
-            _ => Err(Error::Parse("Invalid wire value"))
+            _ => Err(InvalidData("invalid VCD value"))
         }
     }
 }
 
 impl FromStr for Value {
-    type Err = Error;
+    type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Value::parse(*s.as_bytes().get(0).unwrap_or(&b' '))
     }
@@ -196,7 +210,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Value::*;
         write!(f, "{}", match *self {
-            V0  => "0",
+            V0 => "0",
             V1 => "1",
             X => "x",
             Z => "z",
@@ -215,7 +229,7 @@ pub enum ScopeType {
 }
 
 impl FromStr for ScopeType {
-    type Err = Error;
+    type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::ScopeType::*;
         match s {
@@ -224,7 +238,7 @@ impl FromStr for ScopeType {
             "function" => Ok(Function),
             "begin" => Ok(Begin),
             "fork" => Ok(Fork),
-            _ => Err(Error::Parse("Invalid scope type"))
+            _ => Err(InvalidData("invalid scope type"))
         }
     }
 }
@@ -265,14 +279,14 @@ pub enum VarType {
 }
 
 impl FromStr for VarType {
-    type Err = Error;
+    type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::VarType::*;
         match s {
             "wire" => Ok(Wire),
             "reg" => Ok(Reg),
             "real" => Ok(Real),
-            _ => Err(Error::Parse("Invalid var type"))
+            _ => Err(InvalidData("invalid variable type"))
         }
     }
 }
@@ -297,10 +311,10 @@ const ID_CHAR_MAX: u8 = b'~';
 const NUM_ID_CHARS: u32 = (ID_CHAR_MAX - ID_CHAR_MIN + 1) as u32;
 
 impl IdCode {
-    fn new(v: &[u8]) -> Result<IdCode, Error> {
+    fn new(v: &[u8]) -> Result<IdCode, InvalidData> {
         let mut result = 0u32;
         for &i in v {
-            if i < ID_CHAR_MIN || i > ID_CHAR_MAX { return Err(Error::Parse("Invalid ID character")) }
+            if i < ID_CHAR_MIN || i > ID_CHAR_MAX { return Err(InvalidData("invalid ID")) }
             result = result * NUM_ID_CHARS + ((i - ID_CHAR_MIN) as u32);
         }
         Ok(IdCode(result))
@@ -308,7 +322,7 @@ impl IdCode {
 }
 
 impl FromStr for IdCode {
-    type Err = Error;
+    type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         IdCode::new(s.as_bytes())
     }

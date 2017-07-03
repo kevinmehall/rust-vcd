@@ -1,8 +1,6 @@
 use std::io;
-use std::fmt;
-use std::error;
 use std::str::{ FromStr, from_utf8 };
-use std::num;
+use super::InvalidData;
 
 use {
     Value,
@@ -14,57 +12,6 @@ use {
     Header,
     Command
 };
-
-#[derive(Debug)]
-pub enum Error {
-    Io(io::Error),
-    Parse(&'static str),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Io(ref err) => write!(f, "{}", err),
-            Error::Parse(ref msg) => write!(f, "{}", msg),
-        }
-    }
-}
-
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Io(..) => "VCD IO error",
-            Error::Parse(..) => "VCD parse error",
-        }
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        match *self {
-            Error::Io(ref err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error { Error::Io(err) }
-}
-
-impl From<num::ParseIntError> for Error {
-    fn from(_: num::ParseIntError) -> Error { Error::Parse("Invalid number") }
-}
-
-impl From<num::ParseFloatError> for Error {
-    fn from(_: num::ParseFloatError) -> Error { Error::Parse("Invalid number") }
-}
-
-impl From<::std::str::Utf8Error> for Error {
-    fn from(_: ::std::str::Utf8Error) -> Error { Error::Parse("Invalid UTF8") }
-}
-
-impl From<::std::string::FromUtf8Error> for Error {
-    fn from(_: ::std::string::FromUtf8Error) -> Error { Error::Parse("Invalid UTF8") }
-}
 
 fn whitespace_byte(b: u8) -> bool {
     match b {
@@ -93,18 +40,17 @@ impl<R: io::Read> Parser<R> {
         }
     }
 
-    fn read_byte(&mut self) -> Result<u8, Error> {
+    fn read_byte(&mut self) -> Result<u8, io::Error> {
         match self.bytes_iter.next() {
-            Some(Ok(b)) => Ok(b),
-            Some(Err(e)) => return Err(Error::from(e)),
-            None => return Err(Error::Parse("Unexpected EOF")),
+            Some(b) => b,
+            None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected end of VCD file")),
         }
     }
 
-    fn read_token<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a [u8], Error> {
+    fn read_token<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a [u8], io::Error> {
         let mut len = 0;
         loop {
-            let b = try!(self.read_byte());
+            let b = self.read_byte()?;
             if whitespace_byte(b) {
                 if len > 0 { break; } else { continue; }
             }
@@ -112,7 +58,7 @@ impl<R: io::Read> Parser<R> {
             if let Some(p) = buf.get_mut(len) {
                 *p = b;
             } else {
-                return Err(Error::Parse("Token too long"));
+                return Err(InvalidData("token too long").into());
             }
 
             len += 1;
@@ -120,89 +66,96 @@ impl<R: io::Read> Parser<R> {
         Ok(&buf[..len])
     }
 
-    fn read_token_string(&mut self) -> Result<String, Error> {
+    fn read_token_str<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a str, io::Error> {
+        from_utf8(self.read_token(buf)?).map_err(|_| InvalidData("string is not UTF-8").into())
+    }
+
+    fn read_token_string(&mut self) -> Result<String, io::Error> {
         let mut r = Vec::new();
         loop {
-            let b = try!(self.read_byte());
+            let b = self.read_byte()?;
             if whitespace_byte(b) {
                 if r.len() > 0 { break; } else { continue; }
             }
             r.push(b);
         }
-        Ok(try!(String::from_utf8(r)))
+        String::from_utf8(r).map_err(|_| InvalidData("string is not UTF-8").into())
     }
 
-    fn read_token_parse<E, T>(&mut self) -> Result<T, Error> where Error: From<E>, T: FromStr<Err=E> {
+    fn read_token_parse<T>(&mut self) -> Result<T, io::Error> where T: FromStr, <T as FromStr>::Err: 'static + ::std::error::Error + Send + Sync {
         let mut buf = [0; 32];
-        let tok = try!(self.read_token(&mut buf));
+        let tok = self.read_token_str(&mut buf)?;
 
-        if tok == b"$end" {
-            return Err(Error::Parse("Unexpected $end"));
+        if tok == "$end" {
+            return Err(InvalidData("unexpected $end").into());
         }
 
-        let s = try!(from_utf8(tok));
-        Ok(try!(s.parse()))
+        tok.parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
-    fn read_command_end(&mut self) -> Result<(), Error> {
+    fn read_command_end(&mut self) -> Result<(), io::Error> {
         let mut buf = [0; 8];
-        let tok = try!(self.read_token(&mut buf));
-        if tok == b"$end" { Ok(()) } else { Err(Error::Parse("Expected $end")) }
+        let tok = self.read_token(&mut buf)?;
+        if tok == b"$end" { Ok(()) } else { Err(InvalidData("expected $end").into()) }
     }
 
-    fn read_string_command(&mut self) -> Result<String, Error> {
+    fn read_string_command(&mut self) -> Result<String, io::Error> {
         let mut r = Vec::new();
         loop {
-            r.push(try!(self.read_byte()));
+            r.push(self.read_byte()?);
             if r.ends_with(b"$end") { break; }
         }
         let len = r.len() - 4;
         r.truncate(len);
-        Ok(try!(String::from_utf8(r)).trim().to_string()) // TODO: don't reallocate
+
+        let s = from_utf8(&r).map_err(|_| io::Error::from(InvalidData("string is not UTF-8")))?;
+        Ok(s.trim().to_string()) // TODO: don't reallocate
     }
 
-    fn parse_command(&mut self) -> Result<Command, Error> {
+    fn parse_command(&mut self) -> Result<Command, io::Error> {
         use super::Command::*;
         use super::SimulationCommand::*;
 
         let mut cmdbuf = [0; 16];
-        let cmd = try!(self.read_token(&mut cmdbuf));
+        let cmd = self.read_token(&mut cmdbuf)?;
 
         match cmd {
-            b"comment" => Ok(Comment(try!(self.read_string_command()))),
-            b"date"    => Ok(Date(try!(self.read_string_command()))),
-            b"version" => Ok(Version(try!(self.read_string_command()))),
+            b"comment" => Ok(Comment(self.read_string_command()?)),
+            b"date"    => Ok(Date(self.read_string_command()?)),
+            b"version" => Ok(Version(self.read_string_command()?)),
             b"timescale" => {
                 let (mut buf, mut buf2) = ([0; 8], [0; 8]);
-                let tok = try!(from_utf8(try!(self.read_token(&mut buf))));
+                let tok = self.read_token_str(&mut buf)?;
                 // Support both "1ps" and "1 ps"
                 let (num_str, unit_str) = match tok.find(|c: char| !c.is_numeric()) {
                     Some(idx) => (&tok[0..idx], &tok[idx..]),
-                    None => (tok, try!(from_utf8(try!(self.read_token(&mut buf2)))))
+                    None => (tok, self.read_token_str(&mut buf2)?)
                 };
-                try!(self.read_command_end());
-                Ok(Timescale(try!(num_str.parse()), try!(unit_str.parse())))
+                self.read_command_end()?;
+                let quantity = num_str.parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                let unit = unit_str.parse()?;
+                Ok(Timescale(quantity, unit))
             }
             b"scope" => {
-                let scope_type = try!(self.read_token_parse());
-                let identifier = try!(self.read_token_string());
-                try!(self.read_command_end());
+                let scope_type = self.read_token_parse()?;
+                let identifier = self.read_token_string()?;
+                self.read_command_end()?;
                 Ok(ScopeDef(scope_type, identifier))
             }
             b"upscope" => {
-                try!(self.read_command_end());
+                self.read_command_end()?;
                 Ok(Upscope)
             }
             b"var" => {
-                let var_type = try!(self.read_token_parse());
-                let size = try!(self.read_token_parse());
-                let code = try!(self.read_token_parse());
-                let reference = try!(self.read_token_string());
-                try!(self.read_command_end());
+                let var_type = self.read_token_parse()?;
+                let size = self.read_token_parse()?;
+                let code = self.read_token_parse()?;
+                let reference = self.read_token_string()?;
+                self.read_command_end()?;
                 Ok(VarDef(var_type, size, code, reference))
             }
             b"enddefinitions" => {
-                try!(self.read_command_end());
+                self.read_command_end()?;
                 Ok(Enddefinitions)
             }
 
@@ -216,49 +169,50 @@ impl<R: io::Read> Parser<R> {
                 if let Some(c) = self.simulation_command.take() {
                     Ok(End(c))
                 } else {
-                    Err(Error::Parse("Unmatched $end"))
+                    Err(InvalidData("unmatched $end").into())
                 }
             }
 
-            _ => Err(Error::Parse("Invalid keyword"))
+            _ => Err(InvalidData("invalid keyword").into())
         }
     }
 
-    fn begin_simulation_command(&mut self, c: SimulationCommand) -> Result<Command, Error> {
+    fn begin_simulation_command(&mut self, c: SimulationCommand) -> Result<Command, io::Error> {
         self.simulation_command = Some(c);
         Ok(Command::Begin(c))
     }
 
-    fn parse_timestamp(&mut self) -> Result<Command, Error> {
-        Ok(Command::Timestamp(try!(self.read_token_parse())))
+    fn parse_timestamp(&mut self) -> Result<Command, io::Error> {
+        Ok(Command::Timestamp(self.read_token_parse()?))
     }
 
-    fn parse_scalar(&mut self, initial: u8) ->Result<Command, Error> {
-        let id = try!(self.read_token_parse());
-        let val = try!(Value::parse(initial));
+    fn parse_scalar(&mut self, initial: u8) ->Result<Command, io::Error> {
+        let id = self.read_token_parse()?;
+        let val = Value::parse(initial)?;
         Ok(Command::ChangeScalar(id, val))
     }
 
-    fn parse_vector(&mut self) -> Result<Command, Error> {
+    fn parse_vector(&mut self) -> Result<Command, io::Error> {
         let mut buf = [0; 32];
-        let val = try!(try!(self.read_token(&mut buf)).iter().cloned().map(Value::parse).collect());
-        let id = try!(self.read_token_parse());
+        let val = self.read_token(&mut buf)?.iter().map(|&v| { Value::parse(v) })
+            .collect::<Result<Vec<Value>, InvalidData>>()?;
+        let id = self.read_token_parse()?;
         Ok(Command::ChangeVector(id, val))
     }
 
-    fn parse_real(&mut self) -> Result<Command, Error> {
-        let val = try!(self.read_token_parse());
-        let id = try!(self.read_token_parse());
+    fn parse_real(&mut self) -> Result<Command, io::Error> {
+        let val = self.read_token_parse()?;
+        let id = self.read_token_parse()?;
         Ok(Command::ChangeReal(id, val))
     }
 
-    fn parse_string(&mut self) -> Result<Command, Error> {
-        let val = try!(self.read_token_string());
-        let id = try!(self.read_token_parse());
+    fn parse_string(&mut self) -> Result<Command, io::Error> {
+        let val = self.read_token_string()?;
+        let id = self.read_token_parse()?;
         Ok(Command::ChangeString(id, val))
     }
 
-    fn parse_scope(&mut self, scope_type: ScopeType, reference: String) -> Result<Scope, Error> {
+    fn parse_scope(&mut self, scope_type: ScopeType, reference: String) -> Result<Scope, io::Error> {
         use super::Command::*;
         let mut children = Vec::new();
 
@@ -266,16 +220,16 @@ impl<R: io::Read> Parser<R> {
             match self.next() {
                 Some(Ok(Upscope)) => break,
                 Some(Ok(ScopeDef(tp, id))) => {
-                    children.push(ScopeItem::Scope(try!(self.parse_scope(tp, id))));
+                    children.push(ScopeItem::Scope(self.parse_scope(tp, id)?));
                 }
                 Some(Ok(VarDef(tp, size, id, r))) => {
                     children.push(ScopeItem::Var(
                         Var { var_type: tp, size: size, code: id, reference: r }
                     ));
                 }
-                Some(Ok(_)) => return Err(Error::Parse("Unexpected command in $scope")),
-                Some(Err(e)) => return Err(Error::from(e)),
-                None => return Err(Error::Parse("Unexpected EOF in $scope"))
+                Some(Ok(_)) => return Err(InvalidData("unexpected command in $scope").into()),
+                Some(Err(e)) => return Err(e),
+                None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected EOF with open $scope"))
             }
         }
 
@@ -284,7 +238,7 @@ impl<R: io::Read> Parser<R> {
 
     /// Parse the header of a VCD file into a `Header` struct. After returning, the stream has been
     /// read just past the `$enddefinitions` command and can be iterated to obtain the data.
-    pub fn parse_header(&mut self) -> Result<Header, Error> {
+    pub fn parse_header(&mut self) -> Result<Header, io::Error> {
         use super::Command::*;
         let mut header: Header = Default::default();
         loop {
@@ -295,13 +249,13 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(Version(s))) => { header.version = Some(s); }
                 Some(Ok(Timescale(val, unit))) => { header.timescale = Some((val, unit)); }
                 Some(Ok(ScopeDef(tp, id))) => {
-                    header.scope = try!(self.parse_scope(tp, id));
+                    header.scope = self.parse_scope(tp, id)?;
                 }
                 Some(Ok(_)) => {
-                    return Err(Error::Parse("Unexpected command in header"))
+                    return Err(InvalidData("unexpected command in header").into())
                 }
-                Some(Err(e)) => return Err(Error::from(e)),
-                None => return Err(Error::Parse("Unexpected EOF in header"))
+                Some(Err(e)) => return Err(e),
+                None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected end of VCD file before $enddefinitions"))
             }
         }
         Ok(header)
@@ -309,12 +263,12 @@ impl<R: io::Read> Parser<R> {
 }
 
 impl<P: io::Read> Iterator for Parser<P> {
-    type Item = Result<Command, Error>;
-    fn next(&mut self) -> Option<Result<Command, Error>> {
+    type Item = Result<Command, io::Error>;
+    fn next(&mut self) -> Option<Result<Command, io::Error>> {
         while let Some(b) = self.bytes_iter.next() {
             let b = match b {
                 Ok(b) => b,
-                Err(e) => return Some(Err(Error::from(e)))
+                Err(e) => return Some(Err(e))
             };
             match b {
                 b' ' | b'\n' | b'\r' | b'\t' => (),
@@ -324,7 +278,7 @@ impl<P: io::Read> Iterator for Parser<P> {
                 b'b' | b'B' => return Some(self.parse_vector()),
                 b'r' | b'R' => return Some(self.parse_real()),
                 b's' | b'S' => return Some(self.parse_string()),
-                _ => return Some(Err(Error::Parse("Unexpected character at start of command")))
+                _ => return Some(Err(InvalidData("unexpected character at start of command").into()))
             }
         }
         None
