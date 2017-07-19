@@ -97,12 +97,13 @@ pub use read::Parser;
 mod write;
 pub use write::Writer;
 
-/// A unit of time for the `$timescale` command
+/// A unit of time for the `$timescale` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TimescaleUnit {
     S, MS, US, NS, PS, FS,
 }
 
+/// Error wrapping a static string message explaining why parsing failed.
 #[derive(Debug)]
 pub struct InvalidData(&'static str);
 impl Display for InvalidData {
@@ -163,7 +164,7 @@ impl TimescaleUnit {
     }
  }
 
-/// A VCD scalar value
+/// A four-valued logic scalar value.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Value {
     /// Logic high (prefixed with `V` to make a valid Rust identifier)
@@ -218,7 +219,7 @@ impl Display for Value {
     }
 }
 
-/// A type of scope, as used in the `$scope` command
+/// A type of scope, as used in the `$scope` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ScopeType {
     Module,
@@ -256,7 +257,7 @@ impl Display for ScopeType {
     }
 }
 
-/// A type of variable, as used in the `$var` command
+/// A type of variable, as used in the `$var` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VarType {
     //Event,
@@ -344,7 +345,7 @@ impl Display for IdCode {
     }
 }
 
-/// Information on a VCD scope as represented by a `$scope` command and its children
+/// Information on a VCD scope as represented by a `$scope` command and its children.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
     pub scope_type: ScopeType,
@@ -353,7 +354,7 @@ pub struct Scope {
 }
 
 impl Scope {
-    /// Look up a variable by reference
+    /// Looks up a variable by reference.
     pub fn find_var<'a>(&'a self, reference: &str) -> Option<&'a Var> {
         for c in &self.children {
             if let &ScopeItem::Var(ref v) = c {
@@ -381,14 +382,14 @@ pub struct Var {
     pub reference: String,
 }
 
-/// An item in a scope -- either a child scope or a variable
+/// An item in a scope -- either a child scope or a variable.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScopeItem {
     Scope(Scope),
     Var(Var),
 }
 
-/// An element in a VCD file
+/// An element in a VCD file.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
     /// A `$comment` command
@@ -460,7 +461,7 @@ impl Display for SimulationCommand {
     }
 }
 
-/// Structure containing the data from the header of a VCD file
+/// Structure containing the data from the header of a VCD file.
 #[derive(Debug, Default)]
 pub struct Header {
     pub comment: Option<String>,

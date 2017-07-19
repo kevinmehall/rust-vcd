@@ -22,7 +22,7 @@ pub struct Writer<'w> {
 }
 
 impl<'s> Writer<'s> {
-    /// Creates a Writer, wrapping an io::Write
+    /// Creates a Writer, wrapping an io::Write.
     ///
     /// ```
     /// let mut buf = Vec::new();

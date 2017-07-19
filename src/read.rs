@@ -27,7 +27,7 @@ pub struct Parser<R: io::Read> {
 }
 
 impl<R: io::Read> Parser<R> {
-    /// Create a parser wrapping an `io::Read`
+    /// Creates a parser wrapping an `io::Read`.
     ///
     /// ```
     /// let buf = b"...";
@@ -236,8 +236,10 @@ impl<R: io::Read> Parser<R> {
         Ok(Scope { scope_type: scope_type, identifier: reference, children: children })
     }
 
-    /// Parse the header of a VCD file into a `Header` struct. After returning, the stream has been
-    /// read just past the `$enddefinitions` command and can be iterated to obtain the data.
+    /// Parses the header of a VCD file into a `Header` struct.
+    ///
+    /// After returning, the stream has been read just past the `$enddefinitions` command and can
+    /// be iterated to obtain the data.
     pub fn parse_header(&mut self) -> Result<Header, io::Error> {
         use super::Command::*;
         let mut header: Header = Default::default();
