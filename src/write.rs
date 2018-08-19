@@ -29,7 +29,7 @@ impl<'s> Writer<'s> {
     /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
     pub fn new(writer: &mut io::Write) -> Writer {
-        Writer { writer: writer, next_id_code: IdCode(0), scope_depth: 0 }
+        Writer { writer: writer, next_id_code: IdCode::FIRST, scope_depth: 0 }
     }
 
     /// Writes a complete header with the fields from a `Header` struct from the parser.
@@ -103,8 +103,8 @@ impl<'s> Writer<'s> {
     /// Writes a `$var` command with a specified id.
     pub fn var_def(&mut self, var_type: VarType, width: u32, id: IdCode, reference: &str) -> io::Result<()> {
         debug_assert!(self.scope_depth > 0, "Generating invalid VCD: variable must be in a scope");
-        if id.0 >= self.next_id_code.0 {
-            self.next_id_code.0 = id.0 + 1
+        if id >= self.next_id_code {
+            self.next_id_code = id.next();
         }
         writeln!(self.writer, "$var {} {} {} {} $end", var_type, width, id, reference)
     }
