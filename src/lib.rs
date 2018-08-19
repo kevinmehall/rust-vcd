@@ -48,9 +48,13 @@
 //!
 //!    // Parse the header and find the wires
 //!    let header = parser.parse_header()?;
-//!    let clock = header.scope.find_var("clock")
+//!    let scope = match &header.items[0] {
+//!        vcd::ScopeItem::Scope(sc) => sc,
+//!        _ => return Err(io::Error::new(InvalidInput, "no scope")),
+//!    };
+//!    let clock = scope.find_var("clock")
 //!       .ok_or_else(|| io::Error::new(InvalidInput, "no clock wire"))?.code;
-//!    let data = header.scope.find_var("data")
+//!    let data = scope.find_var("data")
 //!       .ok_or_else(|| io::Error::new(InvalidInput, "no data wire"))?.code;
 //!
 //!    // Iterate through the remainder of the file and decode the data
@@ -496,5 +500,5 @@ pub struct Header {
     pub date: Option<String>,
     pub version: Option<String>,
     pub timescale: Option<(u32, TimescaleUnit)>,
-    pub scope: Scope,
+    pub items: Vec<ScopeItem>,
 }

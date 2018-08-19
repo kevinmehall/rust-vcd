@@ -250,8 +250,15 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(Date(s)))    => { header.date    = Some(s); }
                 Some(Ok(Version(s))) => { header.version = Some(s); }
                 Some(Ok(Timescale(val, unit))) => { header.timescale = Some((val, unit)); }
+                Some(Ok(VarDef(var_type, size, code, reference))) => {
+                    header.items.push(ScopeItem::Var(
+                        Var { var_type, size, code, reference }
+                    ));
+                }
                 Some(Ok(ScopeDef(tp, id))) => {
-                    header.scope = self.parse_scope(tp, id)?;
+                    header.items.push(ScopeItem::Scope(
+                        self.parse_scope(tp, id)?
+                    ));
                 }
                 Some(Ok(_)) => {
                     return Err(InvalidData("unexpected command in header").into())
@@ -350,15 +357,20 @@ mod test {
         assert_eq!(header.version, Some("VCD generator text.".to_string()));
         assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
 
-        assert_eq!(&header.scope.identifier[..], "logic");
-        assert_eq!(header.scope.scope_type, ScopeType::Module);
+        let scope = match &header.items[0] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
 
-        if let ScopeItem::Var(ref v) = header.scope.children[0] {
+        assert_eq!(&scope.identifier[..], "logic");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "data");
             assert_eq!(v.size, 8);
         } else {
-            panic!("Expected Var, found {:?}", header.scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.children[0]);
         }
 
         let expected = &[
@@ -410,15 +422,20 @@ b00000000000000000000000000000000 t
         assert_eq!(header.version, None);
         assert_eq!(header.timescale, None);
 
-        assert_eq!(&header.scope.identifier[..], "logic");
-        assert_eq!(header.scope.scope_type, ScopeType::Module);
+        let scope = match &header.items[0] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
 
-        if let ScopeItem::Var(ref v) = header.scope.children[0] {
+        assert_eq!(&scope.identifier[..], "logic");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
             assert_eq!(v.var_type, VarType::Integer);
             assert_eq!(&v.reference[..], "smt_step");
             assert_eq!(v.size, 32);
         } else {
-            panic!("Expected Var, found {:?}", header.scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.children[0]);
         }
 
         let expected = &[
