@@ -250,8 +250,15 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(Date(s)))    => { header.date    = Some(s); }
                 Some(Ok(Version(s))) => { header.version = Some(s); }
                 Some(Ok(Timescale(val, unit))) => { header.timescale = Some((val, unit)); }
+                Some(Ok(VarDef(var_type, size, code, reference))) => {
+                    header.items.push(ScopeItem::Var(
+                        Var { var_type, size, code, reference }
+                    ));
+                }
                 Some(Ok(ScopeDef(tp, id))) => {
-                    header.scope = self.parse_scope(tp, id)?;
+                    header.items.push(ScopeItem::Scope(
+                        self.parse_scope(tp, id)?
+                    ));
                 }
                 Some(Ok(_)) => {
                     return Err(InvalidData("unexpected command in header").into())
@@ -287,101 +294,302 @@ impl<P: io::Read> Iterator for Parser<P> {
     }
 }
 
-#[test]
-fn wikipedia_sample() {
+#[cfg(test)]
+mod test {
+    use super::Var;
     use super::Command::*;
     use super::SimulationCommand::*;
     use super::Value::*;
-    use super::{ TimescaleUnit, IdCode, VarType, ScopeType };
+    use ::{ TimescaleUnit, IdCode, VarType, ScopeType };
+    use super::Parser;
+    use super::ScopeItem;
 
-    let sample = b"
-    $date
-       Date text.
-    $end
-    $version
-       VCD generator text.
-    $end
-    $comment
-       Any comment text.
-    $end
-    $timescale 100 ns $end
-    $scope module logic $end
-    $var wire 8 # data $end
-    $var wire 1 $ data_valid $end
-    $var wire 1 % en $end
-    $var wire 1 & rx_en $end
-    $var wire 1 ' tx_en $end
-    $var wire 1 ( empty $end
-    $var wire 1 ) underrun $end
-    $upscope $end
-    $enddefinitions $end
-    $dumpvars
-    bxxxxxxxx #
-    x$
-    0%
-    x&
-    x'
-    1(
-    0)
-    $end
-    #0
-    b10000001 #
-    0$
-    1%
-    #2211
-    0'
-    #2296
-    b0 #
-    1$
-    #2302
-    0$
-    #2303
-        ";
+    #[test]
+    fn wikipedia_sample() {
+        let sample = b"
+        $date
+        Date text.
+        $end
+        $version
+        VCD generator text.
+        $end
+        $comment
+        Any comment text.
+        $end
+        $timescale 100 ns $end
+        $scope module logic $end
+        $var wire 8 # data $end
+        $var wire 1 $ data_valid $end
+        $var wire 1 % en $end
+        $var wire 1 & rx_en $end
+        $var wire 1 ' tx_en $end
+        $var wire 1 ( empty $end
+        $var wire 1 ) underrun $end
+        $upscope $end
+        $enddefinitions $end
+        $dumpvars
+        bxxxxxxxx #
+        x$
+        0%
+        x&
+        x'
+        1(
+        0)
+        $end
+        #0
+        b10000001 #
+        0$
+        1%
+        #2211
+        0'
+        #2296
+        b0 #
+        1$
+        #2302
+        0$
+        #2303
+            ";
 
-    let mut b = Parser::new(&sample[..]);
+        let mut b = Parser::new(&sample[..]);
 
-    let header = b.parse_header().unwrap();
-    assert_eq!(header.comment, Some("Any comment text.".to_string()));
-    assert_eq!(header.date, Some("Date text.".to_string()));
-    assert_eq!(header.version, Some("VCD generator text.".to_string()));
-    assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
+        let header = b.parse_header().unwrap();
+        assert_eq!(header.comment, Some("Any comment text.".to_string()));
+        assert_eq!(header.date, Some("Date text.".to_string()));
+        assert_eq!(header.version, Some("VCD generator text.".to_string()));
+        assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
 
-    assert_eq!(&header.scope.identifier[..], "logic");
-    assert_eq!(header.scope.scope_type, ScopeType::Module);
+        let scope = match &header.items[0] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
 
-    if let ScopeItem::Var(ref v) = header.scope.children[0] {
-        assert_eq!(v.var_type, VarType::Wire);
-        assert_eq!(&v.reference[..], "data");
-        assert_eq!(v.size, 8);
-    } else {
-        panic!("Expected Var, found {:?}", header.scope.children[0]);
+        assert_eq!(&scope.identifier[..], "logic");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
+            assert_eq!(v.var_type, VarType::Wire);
+            assert_eq!(&v.reference[..], "data");
+            assert_eq!(v.size, 8);
+        } else {
+            panic!("Expected Var, found {:?}", scope.children[0]);
+        }
+
+        let expected = &[
+            Begin(Dumpvars),
+            ChangeVector(IdCode(2), vec![X, X, X, X, X, X, X, X]),
+            ChangeScalar(IdCode(3), X),
+            ChangeScalar(IdCode(4), V0),
+            ChangeScalar(IdCode(5), X),
+            ChangeScalar(IdCode(6), X),
+            ChangeScalar(IdCode(7), V1),
+            ChangeScalar(IdCode(8), V0),
+            End(Dumpvars),
+            Timestamp(0),
+            ChangeVector(IdCode(2), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeScalar(IdCode(3), V0),
+            ChangeScalar(IdCode(4), V1),
+            Timestamp(2211),
+            ChangeScalar(IdCode(6), V0),
+            Timestamp(2296),
+            ChangeVector(IdCode(2), vec![V0]),
+            ChangeScalar(IdCode(3), V1),
+            Timestamp(2302),
+            ChangeScalar(IdCode(3), V0),
+            Timestamp(2303),
+        ];
+
+        for (i, e) in b.zip(expected.iter()) {
+            assert_eq!(&i.unwrap(), e);
+        }
     }
 
-    let expected = &[
-        Begin(Dumpvars),
-        ChangeVector(IdCode(2), vec![X, X, X, X, X, X, X, X]),
-        ChangeScalar(IdCode(3), X),
-        ChangeScalar(IdCode(4), V0),
-        ChangeScalar(IdCode(5), X),
-        ChangeScalar(IdCode(6), X),
-        ChangeScalar(IdCode(7), V1),
-        ChangeScalar(IdCode(8), V0),
-        End(Dumpvars),
-        Timestamp(0),
-        ChangeVector(IdCode(2), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
-        ChangeScalar(IdCode(3), V0),
-        ChangeScalar(IdCode(4), V1),
-        Timestamp(2211),
-        ChangeScalar(IdCode(6), V0),
-        Timestamp(2296),
-        ChangeVector(IdCode(2), vec![V0]),
-        ChangeScalar(IdCode(3), V1),
-        Timestamp(2302),
-        ChangeScalar(IdCode(3), V0),
-        Timestamp(2303),
-    ];
+    #[test]
+    fn more_type_examples() {
+        let sample = b"
+$scope module logic $end
+$var integer 32 t smt_step $end
+$var event 1 ! smt_clock $end
+$upscope $end
+$enddefinitions $end
+#0
+1!
+b00000000000000000000000000000000 t
+";
+        let mut b = Parser::new(&sample[..]);
 
-    for (i, e) in b.zip(expected.iter()) {
-        assert_eq!(&i.unwrap(), e);
+        let header = b.parse_header().unwrap();
+        assert_eq!(header.comment, None);
+        assert_eq!(header.date, None);
+        assert_eq!(header.version, None);
+        assert_eq!(header.timescale, None);
+
+        let scope = match &header.items[0] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
+
+        assert_eq!(&scope.identifier[..], "logic");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
+            assert_eq!(v.var_type, VarType::Integer);
+            assert_eq!(&v.reference[..], "smt_step");
+            assert_eq!(v.size, 32);
+        } else {
+            panic!("Expected Var, found {:?}", scope.children[0]);
+        }
+
+        let expected = &[
+            Timestamp(0),
+            ChangeScalar(IdCode(0), V1),
+            ChangeVector(IdCode(83), vec![V0; 32]),
+        ];
+
+        for (i, e) in b.zip(expected.iter()) {
+            assert_eq!(&i.unwrap(), e);
+        }
+    }
+
+    #[test]
+    fn symbiyosys_example() {
+        let sample = b"
+$var integer 32 t smt_step $end
+$var event 1 ! smt_clock $end
+$scope module queue $end
+$var wire 8 n11 buffer<0> $end
+$var wire 1 n0 i_clk $end
+$var wire 8 n1 i_data $end
+$var wire 1 n2 i_read_enable $end
+$var wire 1 n3 i_reset_n $end
+$var wire 1 n4 i_write_enable $end
+$var wire 1 n5 matches $end
+$var wire 8 n6 o_data $end
+$var wire 1 n7 o_empty $end
+$var wire 1 n8 o_full $end
+$var wire 5 n9 r_ptr $end
+$var wire 5 n10 w_ptr $end
+$upscope $end
+$enddefinitions $end
+#0
+1!
+b00000000000000000000000000000000 t
+b1 n0
+b00000000 n1
+b0 n2
+b0 n3
+b0 n4
+b1 n5
+b00000000 n6
+b1 n7
+b0 n8
+b00000 n9
+b00000 n10
+b00000000 n11
+#5
+b0 n0
+#10
+1!
+b00000000000000000000000000000001 t
+b1 n0
+b00000000 n1
+b0 n2
+b0 n3
+b0 n4
+b1 n5
+b00000000 n6
+b1 n7
+b0 n8
+b00000 n9
+b00000 n10
+b00000000 n11
+#15
+b0 n0
+#20
+1!
+b00000000000000000000000000000010 t
+b1 n0
+";
+
+        let mut b = Parser::new(&sample[..]);
+
+        let header = b.parse_header().unwrap();
+        assert_eq!(header.comment, None);
+        assert_eq!(header.date, None);
+        assert_eq!(header.version, None);
+        assert_eq!(header.timescale, None);
+
+        assert_eq!(header.items[0], ScopeItem::Var(Var {
+            var_type: VarType::Integer,
+            size: 32,
+            code: IdCode(83),
+            reference: "smt_step".into(),
+        }));
+        assert_eq!(header.items[1], ScopeItem::Var(Var {
+            var_type: VarType::Event,
+            size: 1,
+            code: IdCode(0),
+            reference: "smt_clock".into(),
+        }));
+
+        let scope = match &header.items[2] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
+
+        assert_eq!(&scope.identifier[..], "queue");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
+            assert_eq!(v.var_type, VarType::Wire);
+            assert_eq!(&v.reference[..], "buffer<0>");
+            assert_eq!(v.size, 8);
+        } else {
+            panic!("Expected Var, found {:?}", scope.children[0]);
+        }
+
+        let expected = &[
+            Timestamp(0),
+            ChangeScalar(IdCode(0), V1),
+            ChangeVector(IdCode(83), vec![V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(7253), vec![V1]),
+            ChangeVector(IdCode(7254), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(7255), vec![V0]),
+            ChangeVector(IdCode(7256), vec![V0]),
+            ChangeVector(IdCode(7257), vec![V0]),
+            ChangeVector(IdCode(7258), vec![V1]),
+            ChangeVector(IdCode(7259), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(7260), vec![V1]),
+            ChangeVector(IdCode(7261), vec![V0]),
+            ChangeVector(IdCode(7262), vec![V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(681891), vec![V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(681892), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            Timestamp(5),
+            ChangeVector(IdCode(7253), vec![V0]),
+            Timestamp(10),
+            ChangeScalar(IdCode(0), V1),
+            ChangeVector(IdCode(83), vec![V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeVector(IdCode(7253), vec![V1]),
+            ChangeVector(IdCode(7254), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(7255), vec![V0]),
+            ChangeVector(IdCode(7256), vec![V0]),
+            ChangeVector(IdCode(7257), vec![V0]),
+            ChangeVector(IdCode(7258), vec![V1]),
+            ChangeVector(IdCode(7259), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(7260), vec![V1]),
+            ChangeVector(IdCode(7261), vec![V0]),
+            ChangeVector(IdCode(7262), vec![V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(681891), vec![V0, V0, V0, V0, V0]),
+            ChangeVector(IdCode(681892), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            Timestamp(15),
+            ChangeVector(IdCode(7253), vec![V0]),
+            Timestamp(20),
+            ChangeScalar(IdCode(0), V1),
+            ChangeVector(IdCode(83), vec![V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1, V0]),
+            ChangeVector(IdCode(7253), vec![V1]),
+        ];
+
+        for (i, e) in b.zip(expected.iter()) {
+            assert_eq!(&i.unwrap(), e);
+        }
     }
 }

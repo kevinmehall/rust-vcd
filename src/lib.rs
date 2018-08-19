@@ -48,10 +48,10 @@
 //!
 //!    // Parse the header and find the wires
 //!    let header = parser.parse_header()?;
-//!    let clock = header.scope.find_var("clock")
-//!       .ok_or_else(|| io::Error::new(InvalidInput, "no clock wire"))?.code;
-//!    let data = header.scope.find_var("data")
-//!       .ok_or_else(|| io::Error::new(InvalidInput, "no data wire"))?.code;
+//!    let clock = header.find_var(&["top", "clock"])
+//!       .ok_or_else(|| io::Error::new(InvalidInput, "no wire top.clock"))?.code;
+//!    let data = header.find_var(&["top", "data"])
+//!       .ok_or_else(|| io::Error::new(InvalidInput, "no wire top.data"))?.code;
 //!
 //!    // Iterate through the remainder of the file and decode the data
 //!    let mut shift_reg = 0;
@@ -260,23 +260,23 @@ impl Display for ScopeType {
 /// A type of variable, as used in the `$var` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VarType {
-    //Event,
-    //Integer,
-    //Parameter,
+    Event,
+    Integer,
+    Parameter,
     Real,
     Reg,
-    //Supply0,
-    //Supply1,
-    //Time,
-    //Tri,
-    //Triant,
-    //Trior,
-    //Trireg,
-    //Tri0,
-    //Tri1,
-    //Wand,
+    Supply0,
+    Supply1,
+    Time,
+    Tri,
+    TriAnd,
+    TriOr,
+    TriReg,
+    Tri0,
+    Tri1,
+    WAnd,
     Wire,
-    //Wor,
+    WOr,
 }
 
 impl FromStr for VarType {
@@ -284,9 +284,23 @@ impl FromStr for VarType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::VarType::*;
         match s {
-            "wire" => Ok(Wire),
-            "reg" => Ok(Reg),
+            "event" => Ok(Event),
+            "integer" => Ok(Integer),
+            "parameter" => Ok(Parameter),
             "real" => Ok(Real),
+            "reg" => Ok(Reg),
+            "supply0" => Ok(Supply0),
+            "supply1" => Ok(Supply1),
+            "time" => Ok(Time),
+            "tri" => Ok(Tri),
+            "triand" => Ok(TriAnd),
+            "trior" => Ok(TriOr),
+            "trireg" => Ok(TriReg),
+            "tri0" => Ok(Tri0),
+            "tri1" => Ok(Tri1),
+            "wand" => Ok(WAnd),
+            "wire" => Ok(Wire),
+            "wor" => Ok(WOr),
             _ => Err(InvalidData("invalid variable type"))
         }
     }
@@ -296,15 +310,29 @@ impl Display for VarType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::VarType::*;
         write!(f, "{}", match *self {
-            Wire => "wire",
-            Reg => "reg",
+            Event => "event",
+            Integer => "integer",
+            Parameter => "parameter",
             Real => "real",
+            Reg => "reg",
+            Supply0 => "supply0",
+            Supply1 => "supply1",
+            Time => "time",
+            Tri => "tri",
+            TriAnd => "triand",
+            TriOr => "trior",
+            TriReg => "trireg",
+            Tri0 => "tri0",
+            Tri1 => "tri1",
+            WAnd => "wand",
+            Wire => "wire",
+            WOr => "wor",
         })
     }
 }
 
 /// An ID used within the file to refer to a particular variable.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct IdCode(u32);
 
 const ID_CHAR_MIN: u8 = b'!';
@@ -468,5 +496,86 @@ pub struct Header {
     pub date: Option<String>,
     pub version: Option<String>,
     pub timescale: Option<(u32, TimescaleUnit)>,
-    pub scope: Scope,
+    pub items: Vec<ScopeItem>,
+}
+
+impl Header {
+    /// Find the scope object at a specified path.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// let mut parser = vcd::Parser::new(&b"
+    /// $scope module a $end
+    /// $scope module b $end
+    /// $var integer 16 n0 counter $end
+    /// $upscope $end
+    /// $upscope $end
+    /// $enddefinitions $end
+    /// "[..]);
+    /// let header = parser.parse_header().unwrap();
+    /// let scope = header.find_scope(&["a", "b"]).unwrap();
+    /// assert_eq!(scope.identifier, "b");
+    /// ```
+    pub fn find_scope<S>(&self, path: &[S]) -> Option<&Scope>
+        where S: std::borrow::Borrow<str>
+    {
+        fn find_nested_scope<'a, S>(mut scope: &'a Scope, mut path: &[S]) -> Option<&'a Scope>
+            where S: std::borrow::Borrow<str>
+        {
+            'deeper: while !path.is_empty() {
+                for child in &scope.children {
+                    match child {
+                        ScopeItem::Scope(ref new_scope) if new_scope.identifier == path[0].borrow() => {
+                            scope = new_scope;
+                            path = &path[1..];
+                            continue 'deeper;
+                        }
+                        _ => (),
+                    }
+                }
+                return None;
+            }
+            Some(scope)
+        }
+
+        if path.is_empty() {
+            return None;
+        }
+
+        let scope = self.items.iter().find(|item| match item {
+            ScopeItem::Scope(scope) => scope.identifier == path[0].borrow(),
+            _ => false
+        });
+
+        if let Some(ScopeItem::Scope(scope)) = scope {
+            find_nested_scope(scope, &path[1..])
+        } else {
+            None
+        }
+    }
+
+    /// Find the variable object at a specified path.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// let mut parser = vcd::Parser::new(&b"
+    /// $scope module a $end
+    /// $scope module b $end
+    /// $var integer 16 n0 counter $end
+    /// $upscope $end
+    /// $upscope $end
+    /// $enddefinitions $end
+    /// "[..]);
+    /// let header = parser.parse_header().unwrap();
+    /// let var = header.find_var(&["a", "b", "counter"]).unwrap();
+    /// assert_eq!(var.reference, "counter");
+    /// ```
+    pub fn find_var<S>(&self, path: &[S]) -> Option<&Var>
+        where S: std::borrow::Borrow<str>
+    {
+        let scope = self.find_scope(&path[..path.len()-1])?;
+        scope.find_var(path[path.len()-1].borrow())
+    }
 }

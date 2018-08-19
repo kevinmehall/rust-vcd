@@ -38,7 +38,12 @@ impl<'s> Writer<'s> {
         if let Some(ref s) = h.version  { try!(self.version(s)); }
         if let Some(ref s) = h.comment  { try!(self.comment(s)); }
         if let Some((v, u)) = h.timescale { try!(self.timescale(v, u)); }
-        try!(self.scope(&h.scope));
+        for i in &h.items {
+            match *i {
+                ScopeItem::Var(ref v) => try!(self.var(v)),
+                ScopeItem::Scope(ref s) => try!(self.scope(s)),
+            }
+        }
         self.enddefinitions()
     }
 
