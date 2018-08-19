@@ -287,101 +287,148 @@ impl<P: io::Read> Iterator for Parser<P> {
     }
 }
 
-#[test]
-fn wikipedia_sample() {
+#[cfg(test)]
+mod test {
     use super::Command::*;
     use super::SimulationCommand::*;
     use super::Value::*;
-    use super::{ TimescaleUnit, IdCode, VarType, ScopeType };
+    use ::{ TimescaleUnit, IdCode, VarType, ScopeType };
+    use super::Parser;
+    use super::ScopeItem;
 
-    let sample = b"
-    $date
-       Date text.
-    $end
-    $version
-       VCD generator text.
-    $end
-    $comment
-       Any comment text.
-    $end
-    $timescale 100 ns $end
-    $scope module logic $end
-    $var wire 8 # data $end
-    $var wire 1 $ data_valid $end
-    $var wire 1 % en $end
-    $var wire 1 & rx_en $end
-    $var wire 1 ' tx_en $end
-    $var wire 1 ( empty $end
-    $var wire 1 ) underrun $end
-    $upscope $end
-    $enddefinitions $end
-    $dumpvars
-    bxxxxxxxx #
-    x$
-    0%
-    x&
-    x'
-    1(
-    0)
-    $end
-    #0
-    b10000001 #
-    0$
-    1%
-    #2211
-    0'
-    #2296
-    b0 #
-    1$
-    #2302
-    0$
-    #2303
-        ";
+    #[test]
+    fn wikipedia_sample() {
+        let sample = b"
+        $date
+        Date text.
+        $end
+        $version
+        VCD generator text.
+        $end
+        $comment
+        Any comment text.
+        $end
+        $timescale 100 ns $end
+        $scope module logic $end
+        $var wire 8 # data $end
+        $var wire 1 $ data_valid $end
+        $var wire 1 % en $end
+        $var wire 1 & rx_en $end
+        $var wire 1 ' tx_en $end
+        $var wire 1 ( empty $end
+        $var wire 1 ) underrun $end
+        $upscope $end
+        $enddefinitions $end
+        $dumpvars
+        bxxxxxxxx #
+        x$
+        0%
+        x&
+        x'
+        1(
+        0)
+        $end
+        #0
+        b10000001 #
+        0$
+        1%
+        #2211
+        0'
+        #2296
+        b0 #
+        1$
+        #2302
+        0$
+        #2303
+            ";
 
-    let mut b = Parser::new(&sample[..]);
+        let mut b = Parser::new(&sample[..]);
 
-    let header = b.parse_header().unwrap();
-    assert_eq!(header.comment, Some("Any comment text.".to_string()));
-    assert_eq!(header.date, Some("Date text.".to_string()));
-    assert_eq!(header.version, Some("VCD generator text.".to_string()));
-    assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
+        let header = b.parse_header().unwrap();
+        assert_eq!(header.comment, Some("Any comment text.".to_string()));
+        assert_eq!(header.date, Some("Date text.".to_string()));
+        assert_eq!(header.version, Some("VCD generator text.".to_string()));
+        assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
 
-    assert_eq!(&header.scope.identifier[..], "logic");
-    assert_eq!(header.scope.scope_type, ScopeType::Module);
+        assert_eq!(&header.scope.identifier[..], "logic");
+        assert_eq!(header.scope.scope_type, ScopeType::Module);
 
-    if let ScopeItem::Var(ref v) = header.scope.children[0] {
-        assert_eq!(v.var_type, VarType::Wire);
-        assert_eq!(&v.reference[..], "data");
-        assert_eq!(v.size, 8);
-    } else {
-        panic!("Expected Var, found {:?}", header.scope.children[0]);
+        if let ScopeItem::Var(ref v) = header.scope.children[0] {
+            assert_eq!(v.var_type, VarType::Wire);
+            assert_eq!(&v.reference[..], "data");
+            assert_eq!(v.size, 8);
+        } else {
+            panic!("Expected Var, found {:?}", header.scope.children[0]);
+        }
+
+        let expected = &[
+            Begin(Dumpvars),
+            ChangeVector(IdCode(2), vec![X, X, X, X, X, X, X, X]),
+            ChangeScalar(IdCode(3), X),
+            ChangeScalar(IdCode(4), V0),
+            ChangeScalar(IdCode(5), X),
+            ChangeScalar(IdCode(6), X),
+            ChangeScalar(IdCode(7), V1),
+            ChangeScalar(IdCode(8), V0),
+            End(Dumpvars),
+            Timestamp(0),
+            ChangeVector(IdCode(2), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeScalar(IdCode(3), V0),
+            ChangeScalar(IdCode(4), V1),
+            Timestamp(2211),
+            ChangeScalar(IdCode(6), V0),
+            Timestamp(2296),
+            ChangeVector(IdCode(2), vec![V0]),
+            ChangeScalar(IdCode(3), V1),
+            Timestamp(2302),
+            ChangeScalar(IdCode(3), V0),
+            Timestamp(2303),
+        ];
+
+        for (i, e) in b.zip(expected.iter()) {
+            assert_eq!(&i.unwrap(), e);
+        }
     }
 
-    let expected = &[
-        Begin(Dumpvars),
-        ChangeVector(IdCode(2), vec![X, X, X, X, X, X, X, X]),
-        ChangeScalar(IdCode(3), X),
-        ChangeScalar(IdCode(4), V0),
-        ChangeScalar(IdCode(5), X),
-        ChangeScalar(IdCode(6), X),
-        ChangeScalar(IdCode(7), V1),
-        ChangeScalar(IdCode(8), V0),
-        End(Dumpvars),
-        Timestamp(0),
-        ChangeVector(IdCode(2), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
-        ChangeScalar(IdCode(3), V0),
-        ChangeScalar(IdCode(4), V1),
-        Timestamp(2211),
-        ChangeScalar(IdCode(6), V0),
-        Timestamp(2296),
-        ChangeVector(IdCode(2), vec![V0]),
-        ChangeScalar(IdCode(3), V1),
-        Timestamp(2302),
-        ChangeScalar(IdCode(3), V0),
-        Timestamp(2303),
-    ];
+    #[test]
+    fn more_type_examples() {
+        let sample = b"
+$scope module logic $end
+$var integer 32 t smt_step $end
+$var event 1 ! smt_clock $end
+$upscope $end
+$enddefinitions $end
+#0
+1!
+b00000000000000000000000000000000 t
+";
+        let mut b = Parser::new(&sample[..]);
 
-    for (i, e) in b.zip(expected.iter()) {
-        assert_eq!(&i.unwrap(), e);
+        let header = b.parse_header().unwrap();
+        assert_eq!(header.comment, None);
+        assert_eq!(header.date, None);
+        assert_eq!(header.version, None);
+        assert_eq!(header.timescale, None);
+
+        assert_eq!(&header.scope.identifier[..], "logic");
+        assert_eq!(header.scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = header.scope.children[0] {
+            assert_eq!(v.var_type, VarType::Integer);
+            assert_eq!(&v.reference[..], "smt_step");
+            assert_eq!(v.size, 32);
+        } else {
+            panic!("Expected Var, found {:?}", header.scope.children[0]);
+        }
+
+        let expected = &[
+            Timestamp(0),
+            ChangeScalar(IdCode(0), V1),
+            ChangeVector(IdCode(83), vec![V0; 32]),
+        ];
+
+        for (i, e) in b.zip(expected.iter()) {
+            assert_eq!(&i.unwrap(), e);
+        }
     }
 }

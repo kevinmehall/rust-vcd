@@ -260,23 +260,23 @@ impl Display for ScopeType {
 /// A type of variable, as used in the `$var` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VarType {
-    //Event,
-    //Integer,
-    //Parameter,
+    Event,
+    Integer,
+    Parameter,
     Real,
     Reg,
-    //Supply0,
-    //Supply1,
-    //Time,
-    //Tri,
-    //Triant,
-    //Trior,
-    //Trireg,
-    //Tri0,
-    //Tri1,
-    //Wand,
+    Supply0,
+    Supply1,
+    Time,
+    Tri,
+    TriAnd,
+    TriOr,
+    TriReg,
+    Tri0,
+    Tri1,
+    WAnd,
     Wire,
-    //Wor,
+    WOr,
 }
 
 impl FromStr for VarType {
@@ -284,9 +284,23 @@ impl FromStr for VarType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::VarType::*;
         match s {
-            "wire" => Ok(Wire),
-            "reg" => Ok(Reg),
+            "event" => Ok(Event),
+            "integer" => Ok(Integer),
+            "parameter" => Ok(Parameter),
             "real" => Ok(Real),
+            "reg" => Ok(Reg),
+            "supply0" => Ok(Supply0),
+            "supply1" => Ok(Supply1),
+            "time" => Ok(Time),
+            "tri" => Ok(Tri),
+            "triand" => Ok(TriAnd),
+            "trior" => Ok(TriOr),
+            "trireg" => Ok(TriReg),
+            "tri0" => Ok(Tri0),
+            "tri1" => Ok(Tri1),
+            "wand" => Ok(WAnd),
+            "wire" => Ok(Wire),
+            "wor" => Ok(WOr),
             _ => Err(InvalidData("invalid variable type"))
         }
     }
@@ -296,9 +310,23 @@ impl Display for VarType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::VarType::*;
         write!(f, "{}", match *self {
-            Wire => "wire",
-            Reg => "reg",
+            Event => "event",
+            Integer => "integer",
+            Parameter => "parameter",
             Real => "real",
+            Reg => "reg",
+            Supply0 => "supply0",
+            Supply1 => "supply1",
+            Time => "time",
+            Tri => "tri",
+            TriAnd => "triand",
+            TriOr => "trior",
+            TriReg => "trireg",
+            Tri0 => "tri0",
+            Tri1 => "tri1",
+            WAnd => "wand",
+            Wire => "wire",
+            WOr => "wor",
         })
     }
 }
