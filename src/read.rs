@@ -85,11 +85,6 @@ impl<R: io::Read> Parser<R> {
     fn read_token_parse<T>(&mut self) -> Result<T, io::Error> where T: FromStr, <T as FromStr>::Err: 'static + ::std::error::Error + Send + Sync {
         let mut buf = [0; 32];
         let tok = self.read_token_str(&mut buf)?;
-
-        if tok == "$end" {
-            return Err(InvalidData("unexpected $end").into());
-        }
-
         tok.parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
