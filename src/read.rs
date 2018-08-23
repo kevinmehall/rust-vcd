@@ -188,9 +188,14 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn parse_vector(&mut self) -> Result<Command, io::Error> {
-        let mut buf = [0; 32];
-        let val = self.read_token(&mut buf)?.iter().map(|&v| { Value::parse(v) })
-            .collect::<Result<Vec<Value>, InvalidData>>()?;
+        let mut val = Vec::new();
+        loop {
+            let b = self.read_byte()?;
+            if whitespace_byte(b) {
+                if val.len() > 0 { break; } else { continue; }
+            }
+            val.push(Value::parse(b)?);
+        }
         let id = self.read_token_parse()?;
         Ok(Command::ChangeVector(id, val))
     }
