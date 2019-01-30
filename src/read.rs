@@ -145,8 +145,7 @@ impl<R: io::Read> Parser<R> {
                 let var_type = self.read_token_parse()?;
                 let size = self.read_token_parse()?;
                 let code = self.read_token_parse()?;
-                let reference = self.read_token_string()?;
-                self.read_command_end()?;
+                let reference = self.read_string_command()?;
                 Ok(VarDef(var_type, size, code, reference))
             }
             b"enddefinitions" => {
@@ -400,6 +399,35 @@ mod test {
 
         for (i, e) in b.zip(expected.iter()) {
             assert_eq!(&i.unwrap(), e);
+        }
+    }
+
+    #[test]
+    fn name_with_spaces() {
+        let sample = b"
+$scope module top $end
+$var wire 1 ! i_vld [0] $end
+$upscope $end
+$enddefinitions $end
+#0
+";
+        let mut parser = Parser::new(&sample[..]);
+        let header = parser.parse_header().unwrap();
+
+        let scope = match &header.items[0] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
+
+        assert_eq!(&scope.identifier[..], "top");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
+            assert_eq!(v.var_type, VarType::Wire);
+            assert_eq!(&v.reference[..], "i_vld [0]");
+            assert_eq!(v.size, 1);
+        } else {
+            panic!("Expected Var, found {:?}", scope.children[0]);
         }
     }
 
