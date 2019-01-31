@@ -7,6 +7,7 @@ use {
     ScopeType,
     Scope,
     Var,
+    ReferenceIndex,
     ScopeItem,
     SimulationCommand,
     Header,
@@ -107,6 +108,16 @@ impl<R: io::Read> Parser<R> {
         Ok(s.trim().to_string()) // TODO: don't reallocate
     }
 
+    fn read_reference_index_end(&mut self) -> Result<Option<ReferenceIndex>, io::Error> {
+        let mut buf = [0;32];
+        let tok = self.read_token_str(&mut buf)?;
+        if tok.as_bytes() == b"$end" { return Ok(None); }
+
+        let index: ReferenceIndex = tok.parse()?;
+        self.read_command_end()?;
+        return Ok(Some(index));
+    }
+
     fn parse_command(&mut self) -> Result<Command, io::Error> {
         use super::Command::*;
         use super::SimulationCommand::*;
@@ -145,8 +156,9 @@ impl<R: io::Read> Parser<R> {
                 let var_type = self.read_token_parse()?;
                 let size = self.read_token_parse()?;
                 let code = self.read_token_parse()?;
-                let reference = self.read_string_command()?;
-                Ok(VarDef(var_type, size, code, reference))
+                let reference = self.read_token_string()?;
+                let index = self.read_reference_index_end()?;
+                Ok(VarDef(var_type, size, code, reference, index))
             }
             b"enddefinitions" => {
                 self.read_command_end()?;
@@ -221,9 +233,9 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(ScopeDef(tp, id))) => {
                     children.push(ScopeItem::Scope(self.parse_scope(tp, id)?));
                 }
-                Some(Ok(VarDef(tp, size, id, r))) => {
+                Some(Ok(VarDef(tp, size, id, r, idx))) => {
                     children.push(ScopeItem::Var(
-                        Var { var_type: tp, size: size, code: id, reference: r }
+                        Var { var_type: tp, size: size, code: id, reference: r , index: idx}
                     ));
                 }
                 Some(Ok(_)) => return Err(InvalidData("unexpected command in $scope").into()),
@@ -249,9 +261,9 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(Date(s)))    => { header.date    = Some(s); }
                 Some(Ok(Version(s))) => { header.version = Some(s); }
                 Some(Ok(Timescale(val, unit))) => { header.timescale = Some((val, unit)); }
-                Some(Ok(VarDef(var_type, size, code, reference))) => {
+                Some(Ok(VarDef(var_type, size, code, reference, index))) => {
                     header.items.push(ScopeItem::Var(
-                        Var { var_type, size, code, reference }
+                        Var { var_type, size, code, reference, index }
                     ));
                 }
                 Some(Ok(ScopeDef(tp, id))) => {
@@ -302,6 +314,7 @@ mod test {
     use ::{ TimescaleUnit, IdCode, VarType, ScopeType };
     use super::Parser;
     use super::ScopeItem;
+    use super::ReferenceIndex;
 
     #[test]
     fn wikipedia_sample() {
@@ -407,6 +420,7 @@ mod test {
         let sample = b"
 $scope module top $end
 $var wire 1 ! i_vld [0] $end
+$var wire 10 ~ i_data [9:0] $end
 $upscope $end
 $enddefinitions $end
 #0
@@ -424,8 +438,18 @@ $enddefinitions $end
 
         if let ScopeItem::Var(ref v) = scope.children[0] {
             assert_eq!(v.var_type, VarType::Wire);
-            assert_eq!(&v.reference[..], "i_vld [0]");
+            assert_eq!(&v.reference[..], "i_vld");
+            assert_eq!(v.index, Some(ReferenceIndex::BitSelect(0)));
             assert_eq!(v.size, 1);
+        } else {
+            panic!("Expected Var, found {:?}", scope.children[0]);
+        }
+
+        if let ScopeItem::Var(ref v) = scope.children[1] {
+            assert_eq!(v.var_type, VarType::Wire);
+            assert_eq!(&v.reference[..], "i_data");
+            assert_eq!(v.index, Some(ReferenceIndex::Range(9,0)));
+            assert_eq!(v.size, 10);
         } else {
             panic!("Expected Var, found {:?}", scope.children[0]);
         }
@@ -551,12 +575,14 @@ b1 n0
             size: 32,
             code: IdCode(83),
             reference: "smt_step".into(),
+            index: None,
         }));
         assert_eq!(header.items[1], ScopeItem::Var(Var {
             var_type: VarType::Event,
             size: 1,
             code: IdCode(0),
             reference: "smt_clock".into(),
+            index: None,
         }));
 
         let scope = match &header.items[2] {

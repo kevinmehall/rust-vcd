@@ -434,6 +434,44 @@ impl Default for Scope {
     }
 }
 
+/// Index of a VCD variable reference, either a bit select index `[i]` or a range index `[msb:lsb]`
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ReferenceIndex {
+    BitSelect(u32),
+    Range(u32, u32),
+}
+
+impl FromStr for ReferenceIndex {
+    type Err = std::io::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim_start_matches('[').trim_end_matches(']');
+        use ReferenceIndex::*;
+        use io::{Error, ErrorKind};
+        match s.find(':') {
+            Some(idx) => {
+                let msb: u32 = s[..idx].trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+                let lsb: u32 = dbg!(s[idx..].trim_start_matches(':').trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e)))?;
+                Ok(Range(msb, lsb))
+            },
+            None => {
+                let idx  = s.trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+                Ok(BitSelect(idx))
+            }
+        }
+    }
+}
+
+impl Display for ReferenceIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use ReferenceIndex::*;
+        match self {
+            BitSelect(idx) => write!(f, "[{}]", idx)?,
+            Range(msb, lsb) => write!(f, "[{}:{}]", msb, lsb)?,
+        };
+        Ok(())
+    }
+}
+
 /// Information on a VCD variable as represented by a `$var` command.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var {
@@ -441,6 +479,7 @@ pub struct Var {
     pub size: u32,
     pub code: IdCode,
     pub reference: String,
+    pub index: Option<ReferenceIndex>,
 }
 
 /// An item in a scope -- either a child scope or a variable.
@@ -472,7 +511,7 @@ pub enum Command {
     Upscope,
 
     /// A `$var` command
-    VarDef(VarType, u32, IdCode, String),
+    VarDef(VarType, u32, IdCode, String, Option<ReferenceIndex>),
 
     /// An `$enddefinitions` command
     Enddefinitions,
