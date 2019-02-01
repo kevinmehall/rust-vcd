@@ -6,6 +6,7 @@ use {
     IdCode,
     Scope,
     Var,
+    ReferenceIndex,
     ScopeItem,
     SimulationCommand,
     Header,
@@ -101,20 +102,23 @@ impl<'s> Writer<'s> {
     }
 
     /// Writes a `$var` command with a specified id.
-    pub fn var_def(&mut self, var_type: VarType, width: u32, id: IdCode, reference: &str) -> io::Result<()> {
+    pub fn var_def(&mut self, var_type: VarType, width: u32, id: IdCode, reference: &str, index: Option<ReferenceIndex>) -> io::Result<()> {
         debug_assert!(self.scope_depth > 0, "Generating invalid VCD: variable must be in a scope");
         if id >= self.next_id_code {
             self.next_id_code = id.next();
         }
-        writeln!(self.writer, "$var {} {} {} {} $end", var_type, width, id, reference)
+        match index {
+            Some(idx) => writeln!(self.writer, "$var {} {} {} {} {} $end", var_type, width, id, reference, idx),
+            None => writeln!(self.writer, "$var {} {} {} {} $end", var_type, width, id, reference),
+        }
     }
 
     /// Writes a `$var` command with the next available ID, returning the assigned ID.
     ///
     /// Convenience wrapper around `var_def`.
-    pub fn add_var(&mut self, var_type: VarType, width: u32, reference: &str) -> io::Result<IdCode> {
+    pub fn add_var(&mut self, var_type: VarType, width: u32, reference: &str, index: Option<ReferenceIndex>) -> io::Result<IdCode> {
         let id = self.next_id_code;
-        self.var_def(var_type, width, id, reference)?;
+        self.var_def(var_type, width, id, reference, index)?;
         Ok(id)
     }
 
@@ -122,12 +126,12 @@ impl<'s> Writer<'s> {
     ///
     /// Convenience wrapper around `add_var`.
     pub fn add_wire(&mut self, width: u32, reference: &str) -> io::Result<IdCode> {
-        self.add_var(VarType::Wire, width, reference)
+        self.add_var(VarType::Wire, width, reference, None)
     }
 
     /// Writes a `$var` command from a `Var` structure from the parser.
     pub fn var(&mut self, v: &Var) -> io::Result<()> {
-        self.var_def(v.var_type, v.size, v.code, &v.reference[..])
+        self.var_def(v.var_type, v.size, v.code, &v.reference[..], v.index)
     }
 
     /// Writes a `$enddefinitions` command to end the header.
@@ -183,7 +187,7 @@ impl<'s> Writer<'s> {
             Timescale(v, u) => self.timescale(v, u),
             ScopeDef(t, ref i) => self.scope_def(t, &i[..]),
             Upscope => self.upscope(),
-            VarDef(t, s, i, ref r) => self.var_def(t, s, i, &r[..]),
+            VarDef(t, s, i, ref r, idx) => self.var_def(t, s, i, &r[..], idx),
             Enddefinitions => self.enddefinitions(),
             Timestamp(t) => self.timestamp(t),
             ChangeScalar(i, v) => self.change_scalar(i, v),
