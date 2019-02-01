@@ -450,7 +450,7 @@ impl FromStr for ReferenceIndex {
         match s.find(':') {
             Some(idx) => {
                 let msb: u32 = s[..idx].trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-                let lsb: u32 = dbg!(s[idx..].trim_start_matches(':').trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e)))?;
+                let lsb: u32 = s[idx..].trim_start_matches(':').trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
                 Ok(Range(msb, lsb))
             },
             None => {

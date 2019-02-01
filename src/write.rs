@@ -108,7 +108,7 @@ impl<'s> Writer<'s> {
             self.next_id_code = id.next();
         }
         match index {
-            Some(idx) => writeln!(self.writer, "$var {} {} {} {} {}$end", var_type, width, id, reference, idx),
+            Some(idx) => writeln!(self.writer, "$var {} {} {} {} {} $end", var_type, width, id, reference, idx),
             None => writeln!(self.writer, "$var {} {} {} {} $end", var_type, width, id, reference),
         }
     }
