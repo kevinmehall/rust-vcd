@@ -17,7 +17,7 @@ use {
 
 /// Struct wrapping an `io::Write` with methods for writing VCD commands and data.
 pub struct Writer<'w> {
-	writer: &'w mut io::Write,
+	writer: &'w mut dyn io::Write,
     next_id_code: IdCode,
     scope_depth: usize,
 }
@@ -29,7 +29,7 @@ impl<'s> Writer<'s> {
     /// let mut buf = Vec::new();
     /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
-    pub fn new(writer: &mut io::Write) -> Writer {
+    pub fn new(writer: &mut dyn io::Write) -> Writer {
         Writer { writer: writer, next_id_code: IdCode::FIRST, scope_depth: 0 }
     }
 
