@@ -1,5 +1,6 @@
 //! This crate reads and writes [VCD (Value Change Dump)][wp] files, a common format used with
 //! logic analyzers, HDL simulators, and other EDA tools.
+//! 
 //! [wp]: https://en.wikipedia.org/wiki/Value_change_dump
 //!
 //! ## Example

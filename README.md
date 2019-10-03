@@ -1,6 +1,6 @@
 # VCD
 
-**[Documentation](https://docs.rs/vcd)**
+**[Documentation](https://docs.rs/vcd)** | **[Changelog](https://github.com/kevinmehall/rust-vcd/releases)**
 
 [![Build Status](https://travis-ci.org/kevinmehall/rust-vcd.svg?branch=master)](https://travis-ci.org/kevinmehall/rust-vcd)
 
