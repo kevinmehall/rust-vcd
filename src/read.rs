@@ -264,7 +264,7 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(VarDef(tp, size, id, r, idx))) => {
                     children.push(ScopeItem::Var(Var {
                         var_type: tp,
-                        size: size,
+                        size,
                         code: id,
                         reference: r,
                         index: idx,
@@ -282,9 +282,9 @@ impl<R: io::Read> Parser<R> {
         }
 
         Ok(Scope {
-            scope_type: scope_type,
+            scope_type,
             identifier: reference,
-            children: children,
+            children,
         })
     }
 

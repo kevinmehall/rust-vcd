@@ -21,7 +21,7 @@ impl<'s> Writer<'s> {
     /// ```
     pub fn new(writer: &mut dyn io::Write) -> Writer<'_> {
         Writer {
-            writer: writer,
+            writer,
             next_id_code: IdCode::FIRST,
             scope_depth: 0,
         }
