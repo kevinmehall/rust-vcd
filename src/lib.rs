@@ -93,10 +93,10 @@ use std::io;
 use std::str::FromStr;
 
 mod read;
-pub use read::Parser;
+pub use crate::read::Parser;
 
 mod write;
-pub use write::Writer;
+pub use crate::write::Writer;
 
 /// A unit of time for the `$timescale` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -113,7 +113,7 @@ pub enum TimescaleUnit {
 #[derive(Debug)]
 pub struct InvalidData(&'static str);
 impl Display for InvalidData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -145,7 +145,7 @@ impl FromStr for TimescaleUnit {
 }
 
 impl Display for TimescaleUnit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::TimescaleUnit::*;
         write!(
             f,
@@ -198,7 +198,7 @@ pub enum Value {
 
 impl Value {
     fn parse(v: u8) -> Result<Value, InvalidData> {
-        use Value::*;
+        use crate::Value::*;
         match v {
             b'0' => Ok(V0),
             b'1' => Ok(V1),
@@ -228,8 +228,8 @@ impl From<bool> for Value {
 }
 
 impl Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Value::*;
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use crate::Value::*;
         write!(
             f,
             "{}",
@@ -269,7 +269,7 @@ impl FromStr for ScopeType {
 }
 
 impl Display for ScopeType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::ScopeType::*;
         write!(
             f,
@@ -335,7 +335,7 @@ impl FromStr for VarType {
 }
 
 impl Display for VarType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::VarType::*;
         write!(
             f,
@@ -419,11 +419,11 @@ impl From<u64> for IdCode {
 }
 
 impl Display for IdCode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut i = self.0;
         loop {
             let r = i % NUM_ID_CHARS;
-            try!(write!(f, "{}", (r as u8 + ID_CHAR_MIN) as char));
+            write!(f, "{}", (r as u8 + ID_CHAR_MIN) as char)?;
             if i < NUM_ID_CHARS {
                 break;
             }
@@ -502,8 +502,8 @@ impl FromStr for ReferenceIndex {
     type Err = std::io::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim_start_matches('[').trim_end_matches(']');
-        use io::{Error, ErrorKind};
-        use ReferenceIndex::*;
+        use crate::io::{Error, ErrorKind};
+        use crate::ReferenceIndex::*;
         match s.find(':') {
             Some(idx) => {
                 let msb: u32 = s[..idx]
@@ -529,8 +529,8 @@ impl FromStr for ReferenceIndex {
 }
 
 impl Display for ReferenceIndex {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use ReferenceIndex::*;
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use crate::ReferenceIndex::*;
         match self {
             BitSelect(idx) => write!(f, "[{}]", idx)?,
             Range(msb, lsb) => write!(f, "[{}:{}]", msb, lsb)?,
@@ -617,7 +617,7 @@ pub enum SimulationCommand {
 }
 
 impl Display for SimulationCommand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::SimulationCommand::*;
         write!(
             f,

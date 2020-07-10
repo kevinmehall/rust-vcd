@@ -1,6 +1,6 @@
 use std::io;
 
-use {
+use crate::{
     Command, Header, IdCode, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand,
     TimescaleUnit, Value, Var, VarType,
 };
@@ -19,7 +19,7 @@ impl<'s> Writer<'s> {
     /// let mut buf = Vec::new();
     /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
-    pub fn new(writer: &mut dyn io::Write) -> Writer {
+    pub fn new(writer: &mut dyn io::Write) -> Writer<'_> {
         Writer {
             writer: writer,
             next_id_code: IdCode::FIRST,
@@ -30,21 +30,21 @@ impl<'s> Writer<'s> {
     /// Writes a complete header with the fields from a `Header` struct from the parser.
     pub fn header(&mut self, h: &Header) -> io::Result<()> {
         if let Some(ref s) = h.date {
-            try!(self.date(s));
+            self.date(s)?;
         }
         if let Some(ref s) = h.version {
-            try!(self.version(s));
+            self.version(s)?;
         }
         if let Some(ref s) = h.comment {
-            try!(self.comment(s));
+            self.comment(s)?;
         }
         if let Some((v, u)) = h.timescale {
-            try!(self.timescale(v, u));
+            self.timescale(v, u)?;
         }
         for i in &h.items {
             match *i {
-                ScopeItem::Var(ref v) => try!(self.var(v)),
-                ScopeItem::Scope(ref s) => try!(self.scope(s)),
+                ScopeItem::Var(ref v) => self.var(v)?,
+                ScopeItem::Scope(ref s) => self.scope(s)?,
             }
         }
         self.enddefinitions()
@@ -96,11 +96,11 @@ impl<'s> Writer<'s> {
     /// Writes a `$scope` command, a series of `$var` commands, and an `$upscope` commands from
     /// a `Scope` structure from the parser.
     pub fn scope(&mut self, s: &Scope) -> io::Result<()> {
-        try!(self.scope_def(s.scope_type, &s.identifier[..]));
+        self.scope_def(s.scope_type, &s.identifier[..])?;
         for i in &s.children {
             match *i {
-                ScopeItem::Var(ref v) => try!(self.var(v)),
-                ScopeItem::Scope(ref s) => try!(self.scope(s)),
+                ScopeItem::Var(ref v) => self.var(v)?,
+                ScopeItem::Scope(ref s) => self.scope(s)?,
             }
         }
         self.upscope()
@@ -184,9 +184,9 @@ impl<'s> Writer<'s> {
 
     /// Writes a change to a vector variable.
     pub fn change_vector(&mut self, id: IdCode, v: &[Value]) -> io::Result<()> {
-        try!(write!(self.writer, "b"));
+        write!(self.writer, "b")?;
         for i in v {
-            try!(write!(self.writer, "{}", i))
+            write!(self.writer, "{}", i)?
         }
         writeln!(self.writer, " {}", id)
     }

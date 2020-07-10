@@ -2,7 +2,9 @@ use super::InvalidData;
 use std::io;
 use std::str::{from_utf8, FromStr};
 
-use {Command, Header, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand, Value, Var};
+use crate::{
+    Command, Header, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand, Value, Var,
+};
 
 fn whitespace_byte(b: u8) -> bool {
     match b {
@@ -372,7 +374,7 @@ mod test {
     use super::SimulationCommand::*;
     use super::Value::*;
     use super::Var;
-    use {IdCode, ScopeType, TimescaleUnit, VarType};
+    use crate::{IdCode, ScopeType, TimescaleUnit, VarType};
 
     #[test]
     fn wikipedia_sample() {
