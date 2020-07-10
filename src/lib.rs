@@ -1,6 +1,6 @@
 //! This crate reads and writes [VCD (Value Change Dump)][wp] files, a common format used with
 //! logic analyzers, HDL simulators, and other EDA tools.
-//! 
+//!
 //! [wp]: https://en.wikipedia.org/wiki/Value_change_dump
 //!
 //! ## Example
@@ -87,10 +87,10 @@
 //! assert_eq!(value, data);
 //! ```
 
-use std::str::FromStr;
-use std::fmt::{self, Display};
 use std::error::Error;
+use std::fmt::{self, Display};
 use std::io;
+use std::str::FromStr;
 
 mod read;
 pub use read::Parser;
@@ -101,20 +101,31 @@ pub use write::Writer;
 /// A unit of time for the `$timescale` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TimescaleUnit {
-    S, MS, US, NS, PS, FS,
+    S,
+    MS,
+    US,
+    NS,
+    PS,
+    FS,
 }
 
 /// Error wrapping a static string message explaining why parsing failed.
 #[derive(Debug)]
 pub struct InvalidData(&'static str);
 impl Display for InvalidData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.0.fmt(f) }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.0.fmt(f)
+    }
 }
 impl Error for InvalidData {
-    fn description(&self) -> &str { self.0 }
+    fn description(&self) -> &str {
+        self.0
+    }
 }
 impl From<InvalidData> for io::Error {
-    fn from(e: InvalidData) -> io::Error { io::Error::new(io::ErrorKind::InvalidData, e.0) }
+    fn from(e: InvalidData) -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, e.0)
+    }
 }
 
 impl FromStr for TimescaleUnit {
@@ -122,13 +133,13 @@ impl FromStr for TimescaleUnit {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use self::TimescaleUnit::*;
         match s {
-            "s"  => Ok(S),
+            "s" => Ok(S),
             "ms" => Ok(MS),
             "us" => Ok(US),
             "ns" => Ok(NS),
             "ps" => Ok(PS),
             "fs" => Ok(FS),
-            _ => Err(InvalidData("invalid timescale unit"))
+            _ => Err(InvalidData("invalid timescale unit")),
         }
     }
 }
@@ -136,14 +147,18 @@ impl FromStr for TimescaleUnit {
 impl Display for TimescaleUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::TimescaleUnit::*;
-        write!(f, "{}", match *self {
-            S  => "s",
-            MS => "ms",
-            US => "us",
-            NS => "ns",
-            PS => "ps",
-            FS => "fs",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                S => "s",
+                MS => "ms",
+                US => "us",
+                NS => "ns",
+                PS => "ps",
+                FS => "fs",
+            }
+        )
     }
 }
 
@@ -151,7 +166,7 @@ impl TimescaleUnit {
     pub fn divisor(&self) -> u64 {
         use self::TimescaleUnit::*;
         match *self {
-            S  => 1,
+            S => 1,
             MS => 1_000,
             US => 1_000_000,
             NS => 1_000_000_000,
@@ -163,7 +178,7 @@ impl TimescaleUnit {
     pub fn fraction(&self) -> f64 {
         1.0 / (self.divisor() as f64)
     }
- }
+}
 
 /// A four-valued logic scalar value.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -189,7 +204,7 @@ impl Value {
             b'1' => Ok(V1),
             b'x' | b'X' => Ok(X),
             b'z' | b'Z' => Ok(Z),
-            _ => Err(InvalidData("invalid VCD value"))
+            _ => Err(InvalidData("invalid VCD value")),
         }
     }
 }
@@ -204,19 +219,27 @@ impl FromStr for Value {
 impl From<bool> for Value {
     /// `true` converts to `V1`, `false` to `V0`
     fn from(v: bool) -> Value {
-        if v { Value::V1 } else { Value::V0 }
+        if v {
+            Value::V1
+        } else {
+            Value::V0
+        }
     }
 }
 
 impl Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Value::*;
-        write!(f, "{}", match *self {
-            V0 => "0",
-            V1 => "1",
-            X => "x",
-            Z => "z",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                V0 => "0",
+                V1 => "1",
+                X => "x",
+                Z => "z",
+            }
+        )
     }
 }
 
@@ -240,7 +263,7 @@ impl FromStr for ScopeType {
             "function" => Ok(Function),
             "begin" => Ok(Begin),
             "fork" => Ok(Fork),
-            _ => Err(InvalidData("invalid scope type"))
+            _ => Err(InvalidData("invalid scope type")),
         }
     }
 }
@@ -248,13 +271,17 @@ impl FromStr for ScopeType {
 impl Display for ScopeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ScopeType::*;
-        write!(f, "{}", match *self {
-            Module => "module",
-            Task  => "task",
-            Function => "function",
-            Begin  => "begin",
-            Fork  => "fork",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                Module => "module",
+                Task => "task",
+                Function => "function",
+                Begin => "begin",
+                Fork => "fork",
+            }
+        )
     }
 }
 
@@ -302,7 +329,7 @@ impl FromStr for VarType {
             "wand" => Ok(WAnd),
             "wire" => Ok(Wire),
             "wor" => Ok(WOr),
-            _ => Err(InvalidData("invalid variable type"))
+            _ => Err(InvalidData("invalid variable type")),
         }
     }
 }
@@ -310,25 +337,29 @@ impl FromStr for VarType {
 impl Display for VarType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::VarType::*;
-        write!(f, "{}", match *self {
-            Event => "event",
-            Integer => "integer",
-            Parameter => "parameter",
-            Real => "real",
-            Reg => "reg",
-            Supply0 => "supply0",
-            Supply1 => "supply1",
-            Time => "time",
-            Tri => "tri",
-            TriAnd => "triand",
-            TriOr => "trior",
-            TriReg => "trireg",
-            Tri0 => "tri0",
-            Tri1 => "tri1",
-            WAnd => "wand",
-            Wire => "wire",
-            WOr => "wor",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                Event => "event",
+                Integer => "integer",
+                Parameter => "parameter",
+                Real => "real",
+                Reg => "reg",
+                Supply0 => "supply0",
+                Supply1 => "supply1",
+                Time => "time",
+                Tri => "tri",
+                TriAnd => "triand",
+                TriOr => "trior",
+                TriReg => "trireg",
+                Tri0 => "tri0",
+                Tri1 => "tri1",
+                WAnd => "wand",
+                Wire => "wire",
+                WOr => "wor",
+            }
+        )
     }
 }
 
@@ -342,12 +373,18 @@ const NUM_ID_CHARS: u64 = (ID_CHAR_MAX - ID_CHAR_MIN + 1) as u64;
 
 impl IdCode {
     fn new(v: &[u8]) -> Result<IdCode, InvalidData> {
-        if v.is_empty() { return Err(InvalidData("ID cannot be empty")) }
+        if v.is_empty() {
+            return Err(InvalidData("ID cannot be empty"));
+        }
         let mut result = 0u64;
         for &i in v.iter().rev() {
-            if i < ID_CHAR_MIN || i > ID_CHAR_MAX { return Err(InvalidData("invalid characters in ID")) }
+            if i < ID_CHAR_MIN || i > ID_CHAR_MAX {
+                return Err(InvalidData("invalid characters in ID"));
+            }
             let c = ((i - ID_CHAR_MIN) as u64) + 1;
-            result = result.checked_mul(NUM_ID_CHARS).and_then(|x| x.checked_add(c))
+            result = result
+                .checked_mul(NUM_ID_CHARS)
+                .and_then(|x| x.checked_add(c))
                 .ok_or(InvalidData("ID too long"))?;
         }
         Ok(IdCode(result - 1))
@@ -370,11 +407,15 @@ impl FromStr for IdCode {
 }
 
 impl From<u32> for IdCode {
-    fn from(i: u32) -> IdCode { IdCode(i as u64) }
+    fn from(i: u32) -> IdCode {
+        IdCode(i as u64)
+    }
 }
 
 impl From<u64> for IdCode {
-    fn from(i: u64) -> IdCode { IdCode(i) }
+    fn from(i: u64) -> IdCode {
+        IdCode(i)
+    }
 }
 
 impl Display for IdCode {
@@ -383,7 +424,9 @@ impl Display for IdCode {
         loop {
             let r = i % NUM_ID_CHARS;
             try!(write!(f, "{}", (r as u8 + ID_CHAR_MIN) as char));
-            if i < NUM_ID_CHARS { break; }
+            if i < NUM_ID_CHARS {
+                break;
+            }
             i = i / NUM_ID_CHARS - 1;
         }
         Ok(())
@@ -400,10 +443,19 @@ fn test_id_code() {
     }
 
     assert_eq!("!".parse::<IdCode>().unwrap().to_string(), "!");
-    assert_eq!("!!!!!!!!!!".parse::<IdCode>().unwrap().to_string(), "!!!!!!!!!!");
+    assert_eq!(
+        "!!!!!!!!!!".parse::<IdCode>().unwrap().to_string(),
+        "!!!!!!!!!!"
+    );
     assert_eq!("~".parse::<IdCode>().unwrap().to_string(), "~");
-    assert_eq!("~~~~~~~~~".parse::<IdCode>().unwrap().to_string(), "~~~~~~~~~");
-    assert_eq!("n999999999".parse::<IdCode>().unwrap().to_string(), "n999999999");
+    assert_eq!(
+        "~~~~~~~~~".parse::<IdCode>().unwrap().to_string(),
+        "~~~~~~~~~"
+    );
+    assert_eq!(
+        "n999999999".parse::<IdCode>().unwrap().to_string(),
+        "n999999999"
+    );
     assert!("n9999999999".parse::<IdCode>().is_err());
 }
 
@@ -412,7 +464,7 @@ fn test_id_code() {
 pub struct Scope {
     pub scope_type: ScopeType,
     pub identifier: String,
-    pub children: Vec<ScopeItem>
+    pub children: Vec<ScopeItem>,
 }
 
 impl Scope {
@@ -421,7 +473,7 @@ impl Scope {
         for c in &self.children {
             if let &ScopeItem::Var(ref v) = c {
                 if v.reference == reference {
-                    return Some(v)
+                    return Some(v);
                 }
             }
         }
@@ -431,7 +483,11 @@ impl Scope {
 
 impl Default for Scope {
     fn default() -> Scope {
-        Scope { scope_type: ScopeType::Module, identifier: "".to_string(), children: Vec::new() }
+        Scope {
+            scope_type: ScopeType::Module,
+            identifier: "".to_string(),
+            children: Vec::new(),
+        }
     }
 }
 
@@ -446,16 +502,26 @@ impl FromStr for ReferenceIndex {
     type Err = std::io::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim_start_matches('[').trim_end_matches(']');
-        use ReferenceIndex::*;
         use io::{Error, ErrorKind};
+        use ReferenceIndex::*;
         match s.find(':') {
             Some(idx) => {
-                let msb: u32 = s[..idx].trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-                let lsb: u32 = s[idx..].trim_start_matches(':').trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+                let msb: u32 = s[..idx]
+                    .trim()
+                    .parse()
+                    .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+                let lsb: u32 = s[idx..]
+                    .trim_start_matches(':')
+                    .trim()
+                    .parse()
+                    .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
                 Ok(Range(msb, lsb))
-            },
+            }
             None => {
-                let idx  = s.trim().parse().map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+                let idx = s
+                    .trim()
+                    .parse()
+                    .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
                 Ok(BitSelect(idx))
             }
         }
@@ -538,7 +604,7 @@ pub enum Command {
     Begin(SimulationCommand),
 
     /// An end of a simulation command.
-    End(SimulationCommand)
+    End(SimulationCommand),
 }
 
 /// A simulation command type, used in `Command::Begin` and `Command::End`.
@@ -553,12 +619,16 @@ pub enum SimulationCommand {
 impl Display for SimulationCommand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::SimulationCommand::*;
-        write!(f, "{}", match *self {
-            Dumpall  => "dumpall",
-            Dumpoff  => "dumpoff",
-            Dumpon   => "dumpon",
-            Dumpvars => "dumpvars",
-        })
+        write!(
+            f,
+            "{}",
+            match *self {
+                Dumpall => "dumpall",
+                Dumpoff => "dumpoff",
+                Dumpon => "dumpon",
+                Dumpvars => "dumpvars",
+            }
+        )
     }
 }
 
@@ -591,15 +661,19 @@ impl Header {
     /// assert_eq!(scope.identifier, "b");
     /// ```
     pub fn find_scope<S>(&self, path: &[S]) -> Option<&Scope>
-        where S: std::borrow::Borrow<str>
+    where
+        S: std::borrow::Borrow<str>,
     {
         fn find_nested_scope<'a, S>(mut scope: &'a Scope, mut path: &[S]) -> Option<&'a Scope>
-            where S: std::borrow::Borrow<str>
+        where
+            S: std::borrow::Borrow<str>,
         {
             'deeper: while !path.is_empty() {
                 for child in &scope.children {
                     match child {
-                        ScopeItem::Scope(ref new_scope) if new_scope.identifier == path[0].borrow() => {
+                        ScopeItem::Scope(ref new_scope)
+                            if new_scope.identifier == path[0].borrow() =>
+                        {
                             scope = new_scope;
                             path = &path[1..];
                             continue 'deeper;
@@ -618,7 +692,7 @@ impl Header {
 
         let scope = self.items.iter().find(|item| match item {
             ScopeItem::Scope(scope) => scope.identifier == path[0].borrow(),
-            _ => false
+            _ => false,
         });
 
         if let Some(ScopeItem::Scope(scope)) = scope {
@@ -646,9 +720,10 @@ impl Header {
     /// assert_eq!(var.reference, "counter");
     /// ```
     pub fn find_var<S>(&self, path: &[S]) -> Option<&Var>
-        where S: std::borrow::Borrow<str>
+    where
+        S: std::borrow::Borrow<str>,
     {
-        let scope = self.find_scope(&path[..path.len()-1])?;
-        scope.find_var(path[path.len()-1].borrow())
+        let scope = self.find_scope(&path[..path.len() - 1])?;
+        scope.find_var(path[path.len() - 1].borrow())
     }
 }
