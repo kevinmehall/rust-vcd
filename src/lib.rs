@@ -305,6 +305,7 @@ pub enum VarType {
     WAnd,
     Wire,
     WOr,
+    String,
 }
 
 impl FromStr for VarType {
@@ -329,6 +330,7 @@ impl FromStr for VarType {
             "wand" => Ok(WAnd),
             "wire" => Ok(Wire),
             "wor" => Ok(WOr),
+            "string" => Ok(String),
             _ => Err(InvalidData("invalid variable type")),
         }
     }
@@ -358,6 +360,7 @@ impl Display for VarType {
                 WAnd => "wand",
                 Wire => "wire",
                 WOr => "wor",
+                String => "string",
             }
         )
     }
