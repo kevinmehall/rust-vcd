@@ -248,6 +248,7 @@ impl Display for Value {
 
 /// A type of scope, as used in the `$scope` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum ScopeType {
     Module,
     Task,
@@ -290,6 +291,7 @@ impl Display for ScopeType {
 
 /// A type of variable, as used in the `$var` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum VarType {
     Event,
     Integer,
@@ -468,6 +470,7 @@ pub enum ScopeItem {
 
 /// An element in a VCD file.
 #[derive(Debug, PartialEq, Clone)]
+#[non_exhaustive]
 pub enum Command {
     /// A `$comment` command
     Comment(String),
@@ -519,6 +522,7 @@ pub enum Command {
 
 /// A simulation command type, used in `Command::Begin` and `Command::End`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum SimulationCommand {
     Dumpall,
     Dumpoff,
@@ -544,6 +548,7 @@ impl Display for SimulationCommand {
 
 /// Structure containing the data from the header of a VCD file.
 #[derive(Debug, Default)]
+#[non_exhaustive]
 pub struct Header {
     pub comment: Option<String>,
     pub date: Option<String>,
