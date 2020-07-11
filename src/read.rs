@@ -137,8 +137,8 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn parse_command(&mut self) -> Result<Command, io::Error> {
-        use super::Command::*;
-        use super::SimulationCommand::*;
+        use Command::*;
+        use SimulationCommand::*;
 
         let mut cmdbuf = [0; 16];
         let cmd = self.read_token(&mut cmdbuf)?;
@@ -252,7 +252,7 @@ impl<R: io::Read> Parser<R> {
         scope_type: ScopeType,
         reference: String,
     ) -> Result<Scope, io::Error> {
-        use super::Command::*;
+        use Command::*;
         let mut children = Vec::new();
 
         loop {
@@ -293,7 +293,7 @@ impl<R: io::Read> Parser<R> {
     /// After returning, the stream has been read just past the `$enddefinitions` command and can
     /// be iterated to obtain the data.
     pub fn parse_header(&mut self) -> Result<Header, io::Error> {
-        use super::Command::*;
+        use Command::*;
         let mut header: Header = Default::default();
         loop {
             match self.next() {
@@ -367,14 +367,10 @@ impl<P: io::Read> Iterator for Parser<P> {
 
 #[cfg(test)]
 mod test {
-    use super::Command::*;
-    use super::Parser;
-    use super::ReferenceIndex;
-    use super::ScopeItem;
-    use super::SimulationCommand::*;
-    use super::Value::*;
-    use super::Var;
-    use crate::{IdCode, ScopeType, TimescaleUnit, VarType};
+    use crate::{
+        Command::*, Parser, ReferenceIndex, ScopeItem, ScopeType, SimulationCommand::*,
+        TimescaleUnit, Value::*, Var, VarType,
+    };
 
     #[test]
     fn wikipedia_sample() {

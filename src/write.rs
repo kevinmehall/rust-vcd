@@ -213,7 +213,7 @@ impl<'s> Writer<'s> {
 
     /// Writes a command from a `Command` enum as parsed by the parser.
     pub fn command(&mut self, c: &Command) -> io::Result<()> {
-        use super::Command::*;
+        use Command::*;
         match *c {
             Comment(ref c) => self.comment(&c[..]),
             Date(ref c) => self.date(&c[..]),

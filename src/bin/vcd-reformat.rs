@@ -1,5 +1,5 @@
-use vcd;
 use std::io;
+use vcd;
 
 /// A simple demo that uses the reader and writer to round-trip a VCD file from stdin to stdout
 pub fn main() {

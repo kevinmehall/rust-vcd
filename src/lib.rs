@@ -93,21 +93,11 @@ use std::io;
 use std::str::FromStr;
 
 mod read;
-pub use crate::read::Parser;
+pub use read::Parser;
 
 mod write;
-pub use crate::write::Writer;
+pub use write::Writer;
 
-/// A unit of time for the `$timescale` command.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum TimescaleUnit {
-    S,
-    MS,
-    US,
-    NS,
-    PS,
-    FS,
-}
 
 /// Error wrapping a static string message explaining why parsing failed.
 #[derive(Debug)]
@@ -128,10 +118,21 @@ impl From<InvalidData> for io::Error {
     }
 }
 
+/// A unit of time for the `$timescale` command.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TimescaleUnit {
+    S,
+    MS,
+    US,
+    NS,
+    PS,
+    FS,
+}
+
 impl FromStr for TimescaleUnit {
     type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use self::TimescaleUnit::*;
+        use TimescaleUnit::*;
         match s {
             "s" => Ok(S),
             "ms" => Ok(MS),
@@ -146,7 +147,7 @@ impl FromStr for TimescaleUnit {
 
 impl Display for TimescaleUnit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::TimescaleUnit::*;
+        use TimescaleUnit::*;
         write!(
             f,
             "{}",
@@ -164,7 +165,7 @@ impl Display for TimescaleUnit {
 
 impl TimescaleUnit {
     pub fn divisor(&self) -> u64 {
-        use self::TimescaleUnit::*;
+        use TimescaleUnit::*;
         match *self {
             S => 1,
             MS => 1_000,
@@ -198,7 +199,7 @@ pub enum Value {
 
 impl Value {
     fn parse(v: u8) -> Result<Value, InvalidData> {
-        use crate::Value::*;
+        use Value::*;
         match v {
             b'0' => Ok(V0),
             b'1' => Ok(V1),
@@ -229,7 +230,7 @@ impl From<bool> for Value {
 
 impl Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::Value::*;
+        use Value::*;
         write!(
             f,
             "{}",
@@ -256,7 +257,7 @@ pub enum ScopeType {
 impl FromStr for ScopeType {
     type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use self::ScopeType::*;
+        use ScopeType::*;
         match s {
             "module" => Ok(Module),
             "task" => Ok(Task),
@@ -270,7 +271,7 @@ impl FromStr for ScopeType {
 
 impl Display for ScopeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::ScopeType::*;
+        use ScopeType::*;
         write!(
             f,
             "{}",
@@ -311,7 +312,7 @@ pub enum VarType {
 impl FromStr for VarType {
     type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use self::VarType::*;
+        use VarType::*;
         match s {
             "event" => Ok(Event),
             "integer" => Ok(Integer),
@@ -338,7 +339,7 @@ impl FromStr for VarType {
 
 impl Display for VarType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::VarType::*;
+        use VarType::*;
         write!(
             f,
             "{}",
@@ -504,9 +505,9 @@ pub enum ReferenceIndex {
 impl FromStr for ReferenceIndex {
     type Err = std::io::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use std::io::{Error, ErrorKind};
+        use ReferenceIndex::*;
         let s = s.trim_start_matches('[').trim_end_matches(']');
-        use crate::io::{Error, ErrorKind};
-        use crate::ReferenceIndex::*;
         match s.find(':') {
             Some(idx) => {
                 let msb: u32 = s[..idx]
@@ -533,7 +534,7 @@ impl FromStr for ReferenceIndex {
 
 impl Display for ReferenceIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::ReferenceIndex::*;
+        use ReferenceIndex::*;
         match self {
             BitSelect(idx) => write!(f, "[{}]", idx)?,
             Range(msb, lsb) => write!(f, "[{}:{}]", msb, lsb)?,
@@ -621,7 +622,7 @@ pub enum SimulationCommand {
 
 impl Display for SimulationCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::SimulationCommand::*;
+        use SimulationCommand::*;
         write!(
             f,
             "{}",
