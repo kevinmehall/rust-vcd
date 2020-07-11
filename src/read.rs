@@ -1,17 +1,9 @@
-use std::io;
-use std::str::{ FromStr, from_utf8 };
 use super::InvalidData;
+use std::io;
+use std::str::{from_utf8, FromStr};
 
-use {
-    Value,
-    ScopeType,
-    Scope,
-    Var,
-    ReferenceIndex,
-    ScopeItem,
-    SimulationCommand,
-    Header,
-    Command
+use crate::{
+    Command, Header, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand, Value, Var,
 };
 
 fn whitespace_byte(b: u8) -> bool {
@@ -44,7 +36,12 @@ impl<R: io::Read> Parser<R> {
     fn read_byte(&mut self) -> Result<u8, io::Error> {
         match self.bytes_iter.next() {
             Some(b) => b,
-            None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected end of VCD file")),
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "unexpected end of VCD file",
+                ))
+            }
         }
     }
 
@@ -53,7 +50,11 @@ impl<R: io::Read> Parser<R> {
         loop {
             let b = self.read_byte()?;
             if whitespace_byte(b) {
-                if len > 0 { break; } else { continue; }
+                if len > 0 {
+                    break;
+                } else {
+                    continue;
+                }
             }
 
             if let Some(p) = buf.get_mut(len) {
@@ -76,30 +77,45 @@ impl<R: io::Read> Parser<R> {
         loop {
             let b = self.read_byte()?;
             if whitespace_byte(b) {
-                if r.len() > 0 { break; } else { continue; }
+                if r.len() > 0 {
+                    break;
+                } else {
+                    continue;
+                }
             }
             r.push(b);
         }
         String::from_utf8(r).map_err(|_| InvalidData("string is not UTF-8").into())
     }
 
-    fn read_token_parse<T>(&mut self) -> Result<T, io::Error> where T: FromStr, <T as FromStr>::Err: 'static + ::std::error::Error + Send + Sync {
+    fn read_token_parse<T>(&mut self) -> Result<T, io::Error>
+    where
+        T: FromStr,
+        <T as FromStr>::Err: 'static + ::std::error::Error + Send + Sync,
+    {
         let mut buf = [0; 32];
         let tok = self.read_token_str(&mut buf)?;
-        tok.parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        tok.parse()
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn read_command_end(&mut self) -> Result<(), io::Error> {
         let mut buf = [0; 8];
         let tok = self.read_token(&mut buf)?;
-        if tok == b"$end" { Ok(()) } else { Err(InvalidData("expected $end").into()) }
+        if tok == b"$end" {
+            Ok(())
+        } else {
+            Err(InvalidData("expected $end").into())
+        }
     }
 
     fn read_string_command(&mut self) -> Result<String, io::Error> {
         let mut r = Vec::new();
         loop {
             r.push(self.read_byte()?);
-            if r.ends_with(b"$end") { break; }
+            if r.ends_with(b"$end") {
+                break;
+            }
         }
         let len = r.len() - 4;
         r.truncate(len);
@@ -109,9 +125,11 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn read_reference_index_end(&mut self) -> Result<Option<ReferenceIndex>, io::Error> {
-        let mut buf = [0;32];
+        let mut buf = [0; 32];
         let tok = self.read_token_str(&mut buf)?;
-        if tok.as_bytes() == b"$end" { return Ok(None); }
+        if tok.as_bytes() == b"$end" {
+            return Ok(None);
+        }
 
         let index: ReferenceIndex = tok.parse()?;
         self.read_command_end()?;
@@ -127,7 +145,7 @@ impl<R: io::Read> Parser<R> {
 
         match cmd {
             b"comment" => Ok(Comment(self.read_string_command()?)),
-            b"date"    => Ok(Date(self.read_string_command()?)),
+            b"date" => Ok(Date(self.read_string_command()?)),
             b"version" => Ok(Version(self.read_string_command()?)),
             b"timescale" => {
                 let (mut buf, mut buf2) = ([0; 8], [0; 8]);
@@ -135,10 +153,12 @@ impl<R: io::Read> Parser<R> {
                 // Support both "1ps" and "1 ps"
                 let (num_str, unit_str) = match tok.find(|c: char| !c.is_numeric()) {
                     Some(idx) => (&tok[0..idx], &tok[idx..]),
-                    None => (tok, self.read_token_str(&mut buf2)?)
+                    None => (tok, self.read_token_str(&mut buf2)?),
                 };
                 self.read_command_end()?;
-                let quantity = num_str.parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+                let quantity = num_str
+                    .parse()
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
                 let unit = unit_str.parse()?;
                 Ok(Timescale(quantity, unit))
             }
@@ -179,7 +199,7 @@ impl<R: io::Read> Parser<R> {
                 }
             }
 
-            _ => Err(InvalidData("invalid keyword").into())
+            _ => Err(InvalidData("invalid keyword").into()),
         }
     }
 
@@ -192,7 +212,7 @@ impl<R: io::Read> Parser<R> {
         Ok(Command::Timestamp(self.read_token_parse()?))
     }
 
-    fn parse_scalar(&mut self, initial: u8) ->Result<Command, io::Error> {
+    fn parse_scalar(&mut self, initial: u8) -> Result<Command, io::Error> {
         let id = self.read_token_parse()?;
         let val = Value::parse(initial)?;
         Ok(Command::ChangeScalar(id, val))
@@ -203,7 +223,11 @@ impl<R: io::Read> Parser<R> {
         loop {
             let b = self.read_byte()?;
             if whitespace_byte(b) {
-                if val.len() > 0 { break; } else { continue; }
+                if val.len() > 0 {
+                    break;
+                } else {
+                    continue;
+                }
             }
             val.push(Value::parse(b)?);
         }
@@ -223,7 +247,11 @@ impl<R: io::Read> Parser<R> {
         Ok(Command::ChangeString(id, val))
     }
 
-    fn parse_scope(&mut self, scope_type: ScopeType, reference: String) -> Result<Scope, io::Error> {
+    fn parse_scope(
+        &mut self,
+        scope_type: ScopeType,
+        reference: String,
+    ) -> Result<Scope, io::Error> {
         use super::Command::*;
         let mut children = Vec::new();
 
@@ -234,17 +262,30 @@ impl<R: io::Read> Parser<R> {
                     children.push(ScopeItem::Scope(self.parse_scope(tp, id)?));
                 }
                 Some(Ok(VarDef(tp, size, id, r, idx))) => {
-                    children.push(ScopeItem::Var(
-                        Var { var_type: tp, size: size, code: id, reference: r , index: idx}
-                    ));
+                    children.push(ScopeItem::Var(Var {
+                        var_type: tp,
+                        size,
+                        code: id,
+                        reference: r,
+                        index: idx,
+                    }));
                 }
                 Some(Ok(_)) => return Err(InvalidData("unexpected command in $scope").into()),
                 Some(Err(e)) => return Err(e),
-                None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected EOF with open $scope"))
+                None => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "unexpected EOF with open $scope",
+                    ))
+                }
             }
         }
 
-        Ok(Scope { scope_type: scope_type, identifier: reference, children: children })
+        Ok(Scope {
+            scope_type,
+            identifier: reference,
+            children,
+        })
     }
 
     /// Parses the header of a VCD file into a `Header` struct.
@@ -257,25 +298,40 @@ impl<R: io::Read> Parser<R> {
         loop {
             match self.next() {
                 Some(Ok(Enddefinitions)) => break,
-                Some(Ok(Comment(s))) => { header.comment = Some(s); }
-                Some(Ok(Date(s)))    => { header.date    = Some(s); }
-                Some(Ok(Version(s))) => { header.version = Some(s); }
-                Some(Ok(Timescale(val, unit))) => { header.timescale = Some((val, unit)); }
+                Some(Ok(Comment(s))) => {
+                    header.comment = Some(s);
+                }
+                Some(Ok(Date(s))) => {
+                    header.date = Some(s);
+                }
+                Some(Ok(Version(s))) => {
+                    header.version = Some(s);
+                }
+                Some(Ok(Timescale(val, unit))) => {
+                    header.timescale = Some((val, unit));
+                }
                 Some(Ok(VarDef(var_type, size, code, reference, index))) => {
-                    header.items.push(ScopeItem::Var(
-                        Var { var_type, size, code, reference, index }
-                    ));
+                    header.items.push(ScopeItem::Var(Var {
+                        var_type,
+                        size,
+                        code,
+                        reference,
+                        index,
+                    }));
                 }
                 Some(Ok(ScopeDef(tp, id))) => {
-                    header.items.push(ScopeItem::Scope(
-                        self.parse_scope(tp, id)?
-                    ));
+                    header
+                        .items
+                        .push(ScopeItem::Scope(self.parse_scope(tp, id)?));
                 }
-                Some(Ok(_)) => {
-                    return Err(InvalidData("unexpected command in header").into())
-                }
+                Some(Ok(_)) => return Err(InvalidData("unexpected command in header").into()),
                 Some(Err(e)) => return Err(e),
-                None => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected end of VCD file before $enddefinitions"))
+                None => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "unexpected end of VCD file before $enddefinitions",
+                    ))
+                }
             }
         }
         Ok(header)
@@ -288,7 +344,7 @@ impl<P: io::Read> Iterator for Parser<P> {
         while let Some(b) = self.bytes_iter.next() {
             let b = match b {
                 Ok(b) => b,
-                Err(e) => return Some(Err(e))
+                Err(e) => return Some(Err(e)),
             };
             match b {
                 b' ' | b'\n' | b'\r' | b'\t' => (),
@@ -298,7 +354,11 @@ impl<P: io::Read> Iterator for Parser<P> {
                 b'b' | b'B' => return Some(self.parse_vector()),
                 b'r' | b'R' => return Some(self.parse_real()),
                 b's' | b'S' => return Some(self.parse_string()),
-                _ => return Some(Err(InvalidData("unexpected character at start of command").into()))
+                _ => {
+                    return Some(Err(
+                        InvalidData("unexpected character at start of command").into()
+                    ))
+                }
             }
         }
         None
@@ -307,14 +367,14 @@ impl<P: io::Read> Iterator for Parser<P> {
 
 #[cfg(test)]
 mod test {
-    use super::Var;
     use super::Command::*;
+    use super::Parser;
+    use super::ReferenceIndex;
+    use super::ScopeItem;
     use super::SimulationCommand::*;
     use super::Value::*;
-    use ::{ TimescaleUnit, IdCode, VarType, ScopeType };
-    use super::Parser;
-    use super::ScopeItem;
-    use super::ReferenceIndex;
+    use super::Var;
+    use crate::{IdCode, ScopeType, TimescaleUnit, VarType};
 
     #[test]
     fn wikipedia_sample() {
@@ -448,7 +508,7 @@ $enddefinitions $end
         if let ScopeItem::Var(ref v) = scope.children[1] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "i_data");
-            assert_eq!(v.index, Some(ReferenceIndex::Range(9,0)));
+            assert_eq!(v.index, Some(ReferenceIndex::Range(9, 0)));
             assert_eq!(v.size, 10);
         } else {
             panic!("Expected Var, found {:?}", scope.children[0]);
@@ -570,20 +630,26 @@ b1 n0
         assert_eq!(header.version, None);
         assert_eq!(header.timescale, None);
 
-        assert_eq!(header.items[0], ScopeItem::Var(Var {
-            var_type: VarType::Integer,
-            size: 32,
-            code: IdCode(83),
-            reference: "smt_step".into(),
-            index: None,
-        }));
-        assert_eq!(header.items[1], ScopeItem::Var(Var {
-            var_type: VarType::Event,
-            size: 1,
-            code: IdCode(0),
-            reference: "smt_clock".into(),
-            index: None,
-        }));
+        assert_eq!(
+            header.items[0],
+            ScopeItem::Var(Var {
+                var_type: VarType::Integer,
+                size: 32,
+                code: IdCode(83),
+                reference: "smt_step".into(),
+                index: None,
+            })
+        );
+        assert_eq!(
+            header.items[1],
+            ScopeItem::Var(Var {
+                var_type: VarType::Event,
+                size: 1,
+                code: IdCode(0),
+                reference: "smt_clock".into(),
+                index: None,
+            })
+        );
 
         let scope = match &header.items[2] {
             ScopeItem::Scope(sc) => sc,
@@ -604,7 +670,13 @@ b1 n0
         let expected = &[
             Timestamp(0),
             ChangeScalar(IdCode(0), V1),
-            ChangeVector(IdCode(83), vec![V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(
+                IdCode(83),
+                vec![
+                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
+                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
+                ],
+            ),
             ChangeVector(IdCode(1581), vec![V1]),
             ChangeVector(IdCode(1675), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
             ChangeVector(IdCode(1769), vec![V0]),
@@ -621,7 +693,13 @@ b1 n0
             ChangeVector(IdCode(1581), vec![V0]),
             Timestamp(10),
             ChangeScalar(IdCode(0), V1),
-            ChangeVector(IdCode(83), vec![V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeVector(
+                IdCode(83),
+                vec![
+                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
+                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1,
+                ],
+            ),
             ChangeVector(IdCode(1581), vec![V1]),
             ChangeVector(IdCode(1675), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
             ChangeVector(IdCode(1769), vec![V0]),
@@ -638,7 +716,13 @@ b1 n0
             ChangeVector(IdCode(1581), vec![V0]),
             Timestamp(20),
             ChangeScalar(IdCode(0), V1),
-            ChangeVector(IdCode(83), vec![V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1, V0]),
+            ChangeVector(
+                IdCode(83),
+                vec![
+                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
+                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1, V0,
+                ],
+            ),
             ChangeVector(IdCode(1581), vec![V1]),
         ];
 

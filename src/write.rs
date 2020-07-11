@@ -1,23 +1,13 @@
 use std::io;
 
-use {
-    TimescaleUnit,
-    Value,
-    IdCode,
-    Scope,
-    Var,
-    ReferenceIndex,
-    ScopeItem,
-    SimulationCommand,
-    Header,
-    ScopeType,
-    VarType,
-    Command
+use crate::{
+    Command, Header, IdCode, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand,
+    TimescaleUnit, Value, Var, VarType,
 };
 
 /// Struct wrapping an `io::Write` with methods for writing VCD commands and data.
 pub struct Writer<'w> {
-	writer: &'w mut dyn io::Write,
+    writer: &'w mut dyn io::Write,
     next_id_code: IdCode,
     scope_depth: usize,
 }
@@ -29,20 +19,32 @@ impl<'s> Writer<'s> {
     /// let mut buf = Vec::new();
     /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
-    pub fn new(writer: &mut dyn io::Write) -> Writer {
-        Writer { writer: writer, next_id_code: IdCode::FIRST, scope_depth: 0 }
+    pub fn new(writer: &mut dyn io::Write) -> Writer<'_> {
+        Writer {
+            writer,
+            next_id_code: IdCode::FIRST,
+            scope_depth: 0,
+        }
     }
 
     /// Writes a complete header with the fields from a `Header` struct from the parser.
     pub fn header(&mut self, h: &Header) -> io::Result<()> {
-        if let Some(ref s) = h.date     { try!(self.date(s)); }
-        if let Some(ref s) = h.version  { try!(self.version(s)); }
-        if let Some(ref s) = h.comment  { try!(self.comment(s)); }
-        if let Some((v, u)) = h.timescale { try!(self.timescale(v, u)); }
+        if let Some(ref s) = h.date {
+            self.date(s)?;
+        }
+        if let Some(ref s) = h.version {
+            self.version(s)?;
+        }
+        if let Some(ref s) = h.comment {
+            self.comment(s)?;
+        }
+        if let Some((v, u)) = h.timescale {
+            self.timescale(v, u)?;
+        }
         for i in &h.items {
             match *i {
-                ScopeItem::Var(ref v) => try!(self.var(v)),
-                ScopeItem::Scope(ref s) => try!(self.scope(s)),
+                ScopeItem::Var(ref v) => self.var(v)?,
+                ScopeItem::Scope(ref s) => self.scope(s)?,
             }
         }
         self.enddefinitions()
@@ -83,7 +85,10 @@ impl<'s> Writer<'s> {
 
     /// Writes an `$upscope` command.
     pub fn upscope(&mut self) -> io::Result<()> {
-        debug_assert!(self.scope_depth > 0, "Generating invalid VCD: upscope without a matching scope");
+        debug_assert!(
+            self.scope_depth > 0,
+            "Generating invalid VCD: upscope without a matching scope"
+        );
         self.scope_depth -= 1;
         writeln!(self.writer, "$upscope $end")
     }
@@ -91,32 +96,56 @@ impl<'s> Writer<'s> {
     /// Writes a `$scope` command, a series of `$var` commands, and an `$upscope` commands from
     /// a `Scope` structure from the parser.
     pub fn scope(&mut self, s: &Scope) -> io::Result<()> {
-        try!(self.scope_def(s.scope_type, &s.identifier[..]));
+        self.scope_def(s.scope_type, &s.identifier[..])?;
         for i in &s.children {
             match *i {
-                ScopeItem::Var(ref v) => try!(self.var(v)),
-                ScopeItem::Scope(ref s) => try!(self.scope(s)),
+                ScopeItem::Var(ref v) => self.var(v)?,
+                ScopeItem::Scope(ref s) => self.scope(s)?,
             }
         }
         self.upscope()
     }
 
     /// Writes a `$var` command with a specified id.
-    pub fn var_def(&mut self, var_type: VarType, width: u32, id: IdCode, reference: &str, index: Option<ReferenceIndex>) -> io::Result<()> {
-        debug_assert!(self.scope_depth > 0, "Generating invalid VCD: variable must be in a scope");
+    pub fn var_def(
+        &mut self,
+        var_type: VarType,
+        width: u32,
+        id: IdCode,
+        reference: &str,
+        index: Option<ReferenceIndex>,
+    ) -> io::Result<()> {
+        debug_assert!(
+            self.scope_depth > 0,
+            "Generating invalid VCD: variable must be in a scope"
+        );
         if id >= self.next_id_code {
             self.next_id_code = id.next();
         }
         match index {
-            Some(idx) => writeln!(self.writer, "$var {} {} {} {} {} $end", var_type, width, id, reference, idx),
-            None => writeln!(self.writer, "$var {} {} {} {} $end", var_type, width, id, reference),
+            Some(idx) => writeln!(
+                self.writer,
+                "$var {} {} {} {} {} $end",
+                var_type, width, id, reference, idx
+            ),
+            None => writeln!(
+                self.writer,
+                "$var {} {} {} {} $end",
+                var_type, width, id, reference
+            ),
         }
     }
 
     /// Writes a `$var` command with the next available ID, returning the assigned ID.
     ///
     /// Convenience wrapper around `var_def`.
-    pub fn add_var(&mut self, var_type: VarType, width: u32, reference: &str, index: Option<ReferenceIndex>) -> io::Result<IdCode> {
+    pub fn add_var(
+        &mut self,
+        var_type: VarType,
+        width: u32,
+        reference: &str,
+        index: Option<ReferenceIndex>,
+    ) -> io::Result<IdCode> {
         let id = self.next_id_code;
         self.var_def(var_type, width, id, reference, index)?;
         Ok(id)
@@ -136,7 +165,10 @@ impl<'s> Writer<'s> {
 
     /// Writes a `$enddefinitions` command to end the header.
     pub fn enddefinitions(&mut self) -> io::Result<()> {
-        debug_assert!(self.scope_depth == 0, "Generating invalid VCD: {} scopes must be closed with $upscope before $enddefinitions");
+        debug_assert!(
+            self.scope_depth == 0,
+            "Generating invalid VCD: {} scopes must be closed with $upscope before $enddefinitions"
+        );
         writeln!(self.writer, "$enddefinitions $end")
     }
 
@@ -152,8 +184,10 @@ impl<'s> Writer<'s> {
 
     /// Writes a change to a vector variable.
     pub fn change_vector(&mut self, id: IdCode, v: &[Value]) -> io::Result<()> {
-        try!(write!(self.writer, "b"));
-        for i in v { try!(write!(self.writer, "{}", i)) }
+        write!(self.writer, "b")?;
+        for i in v {
+            write!(self.writer, "{}", i)?
+        }
         writeln!(self.writer, " {}", id)
     }
 

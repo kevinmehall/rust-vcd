@@ -1,4 +1,4 @@
-extern crate vcd;
+use vcd;
 use std::io;
 
 /// A simple demo that uses the reader and writer to round-trip a VCD file from stdin to stdout
