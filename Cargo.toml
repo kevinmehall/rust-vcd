@@ -1,6 +1,6 @@
 [package]
 name = "vcd"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Kevin Mehall <km@kevinmehall.net>"]
 description = "Read and write VCD (Value Change Dump) files"
 license = "MIT"
