@@ -6,20 +6,20 @@ use crate::{
 };
 
 /// Struct wrapping an `io::Write` with methods for writing VCD commands and data.
-pub struct Writer<'w> {
-    writer: &'w mut dyn io::Write,
+pub struct Writer<W: io::Write> {
+    writer: W,
     next_id_code: IdCode,
     scope_depth: usize,
 }
 
-impl<'s> Writer<'s> {
+impl<W: io::Write> Writer<W> {
     /// Creates a Writer, wrapping an io::Write.
     ///
     /// ```
     /// let mut buf = Vec::new();
     /// let mut vcd = vcd::Writer::new(&mut buf);
     /// ```
-    pub fn new(writer: &mut dyn io::Write) -> Writer<'_> {
+    pub fn new(writer: W) -> Writer<W> {
         Writer {
             writer,
             next_id_code: IdCode::FIRST,
