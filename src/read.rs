@@ -36,12 +36,10 @@ impl<R: io::Read> Parser<R> {
     fn read_byte(&mut self) -> Result<u8, io::Error> {
         match self.bytes_iter.next() {
             Some(b) => b,
-            None => {
-                return Err(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "unexpected end of VCD file",
-                ))
-            }
+            None => Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "unexpected end of VCD file",
+            )),
         }
     }
 
@@ -133,7 +131,7 @@ impl<R: io::Read> Parser<R> {
 
         let index: ReferenceIndex = tok.parse()?;
         self.read_command_end()?;
-        return Ok(Some(index));
+        Ok(Some(index))
     }
 
     fn parse_command(&mut self) -> Result<Command, io::Error> {

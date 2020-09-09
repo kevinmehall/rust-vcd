@@ -167,7 +167,8 @@ impl<W: io::Write> Writer<W> {
     pub fn enddefinitions(&mut self) -> io::Result<()> {
         debug_assert!(
             self.scope_depth == 0,
-            "Generating invalid VCD: {} scopes must be closed with $upscope before $enddefinitions"
+            "Generating invalid VCD: {} scopes must be closed with $upscope before $enddefinitions",
+            self.scope_depth
         );
         writeln!(self.writer, "$enddefinitions $end")
     }
