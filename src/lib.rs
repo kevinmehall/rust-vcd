@@ -466,6 +466,7 @@ pub struct Var {
 pub enum ScopeItem {
     Scope(Scope),
     Var(Var),
+    Comment(String),
 }
 
 /// An element in a VCD file.

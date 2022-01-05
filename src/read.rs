@@ -268,6 +268,9 @@ impl<R: io::Read> Parser<R> {
                         index: idx,
                     }));
                 }
+                Some(Ok(Comment(comment))) => {
+                    children.push(ScopeItem::Comment(comment));
+                }
                 Some(Ok(_)) => return Err(InvalidData("unexpected command in $scope").into()),
                 Some(Err(e)) => return Err(e),
                 None => {
