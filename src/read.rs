@@ -268,6 +268,9 @@ impl<R: io::Read> Parser<R> {
                         index: idx,
                     }));
                 }
+                Some(Ok(Comment(comment))) => {
+                    children.push(ScopeItem::Comment(comment));
+                }
                 Some(Ok(_)) => return Err(InvalidData("unexpected command in $scope").into()),
                 Some(Err(e)) => return Err(e),
                 None => {
@@ -718,6 +721,119 @@ b1 n0
                 ],
             ),
             ChangeVector(1581u32.into(), vec![V1]),
+        ];
+
+        for (i, e) in b.zip(expected.iter()) {
+            assert_eq!(&i.unwrap(), e);
+        }
+    }
+
+
+    #[test]
+    fn comment_in_scope() {
+        let sample = b"
+        $date
+        Date text.
+        $end
+        $version
+        VCD generator text.
+        $end
+        $comment
+        Any comment text.
+        $end
+        $timescale 100 ns $end
+        $scope module logic $end
+        $var wire 8 # data $end
+        $var wire 1 $ data_valid $end
+        $var wire 1 % en $end
+        $comment test comment please ignore! $end
+        $var wire 1 & rx_en $end
+        $var wire 1 ' tx_en $end
+        $var wire 1 ( empty $end
+        $var wire 1 ) underrun $end
+        $comment foo is not handled $end
+        $upscope $end
+        $enddefinitions $end
+        $dumpvars
+        bxxxxxxxx #
+        x$
+        0%
+        x&
+        x'
+        1(
+        0)
+        $end
+        #0
+        b10000001 #
+        0$
+        1%
+        #2211
+        0'
+        #2296
+        b0 #
+        1$
+        #2302
+        0$
+        #2303
+            ";
+
+        let mut b = Parser::new(&sample[..]);
+
+        let header = b.parse_header().unwrap();
+        assert_eq!(header.comment, Some("Any comment text.".to_string()));
+        assert_eq!(header.date, Some("Date text.".to_string()));
+        assert_eq!(header.version, Some("VCD generator text.".to_string()));
+        assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
+
+        let scope = match &header.items[0] {
+            ScopeItem::Scope(sc) => sc,
+            x => panic!("Expected Scope, found {:?}", x),
+        };
+
+        assert_eq!(&scope.identifier[..], "logic");
+        assert_eq!(scope.scope_type, ScopeType::Module);
+
+        if let ScopeItem::Var(ref v) = scope.children[0] {
+            assert_eq!(v.var_type, VarType::Wire);
+            assert_eq!(&v.reference[..], "data");
+            assert_eq!(v.size, 8);
+        } else {
+            panic!("Expected Var, found {:?}", scope.children[0]);
+        }
+
+        if let ScopeItem::Comment(_) = scope.children[3] {
+        } else {
+            panic!("Expected Comment, found {:?}", scope.children[3]);
+        }
+
+        if let ScopeItem::Comment(_) = scope.children[8] {
+        } else {
+            panic!("Expected Comment, found {:?}", scope.children[8]);
+        }
+
+
+        let expected = &[
+            Begin(Dumpvars),
+            ChangeVector(2u32.into(), vec![X, X, X, X, X, X, X, X]),
+            ChangeScalar(3u32.into(), X),
+            ChangeScalar(4u32.into(), V0),
+            ChangeScalar(5u32.into(), X),
+            ChangeScalar(6u32.into(), X),
+            ChangeScalar(7u32.into(), V1),
+            ChangeScalar(8u32.into(), V0),
+            End(Dumpvars),
+            Timestamp(0),
+            ChangeVector(2u32.into(), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeScalar(3u32.into(), V0),
+            ChangeScalar(4u32.into(), V1),
+            Timestamp(2211),
+            ChangeScalar(6u32.into(), V0),
+            Timestamp(2296),
+            ChangeVector(2u32.into(), vec![V0]),
+            ChangeScalar(3u32.into(), V1),
+            Timestamp(2302),
+            ChangeScalar(3u32.into(), V0),
+            Timestamp(2303),
         ];
 
         for (i, e) in b.zip(expected.iter()) {

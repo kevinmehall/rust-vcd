@@ -45,6 +45,7 @@ impl<W: io::Write> Writer<W> {
             match *i {
                 ScopeItem::Var(ref v) => self.var(v)?,
                 ScopeItem::Scope(ref s) => self.scope(s)?,
+                ScopeItem::Comment(ref c) => self.comment(c)?,
             }
         }
         self.enddefinitions()
@@ -101,6 +102,7 @@ impl<W: io::Write> Writer<W> {
             match *i {
                 ScopeItem::Var(ref v) => self.var(v)?,
                 ScopeItem::Scope(ref s) => self.scope(s)?,
+                ScopeItem::Comment(ref c) => self.comment(c)?,
             }
         }
         self.upscope()
