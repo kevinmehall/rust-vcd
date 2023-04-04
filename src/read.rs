@@ -15,7 +15,7 @@ fn whitespace_byte(b: u8) -> bool {
 
 /// VCD parser. Wraps an `io::Read` and acts as an iterator of `Command`s.
 pub struct Parser<R: io::Read> {
-    bytes_iter: io::Bytes<R>,
+    reader: R,
     simulation_command: Option<SimulationCommand>,
 }
 
@@ -26,20 +26,29 @@ impl<R: io::Read> Parser<R> {
     /// let buf = b"...";
     /// let mut vcd = vcd::Parser::new(&buf[..]);
     /// ```
-    pub fn new(r: R) -> Parser<R> {
+    pub fn new(reader: R) -> Parser<R> {
         Parser {
-            bytes_iter: r.bytes(),
+            reader,
             simulation_command: None,
         }
     }
 
+    /// get the wrapped [`io::Read`]
+    pub fn reader(&mut self) -> &mut R {
+        &mut self.reader
+    }
+
+    fn read_byte_or_eof(&mut self) -> Result<Option<u8>, io::Error> {
+        io::Read::bytes(&mut self.reader).next().transpose()
+    }
+
     fn read_byte(&mut self) -> Result<u8, io::Error> {
-        match self.bytes_iter.next() {
-            Some(b) => b,
+        match self.read_byte_or_eof()? {
             None => Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "unexpected end of VCD file",
             )),
+            Some(v) => Ok(v),
         }
     }
 
@@ -342,7 +351,7 @@ impl<R: io::Read> Parser<R> {
 impl<P: io::Read> Iterator for Parser<P> {
     type Item = Result<Command, io::Error>;
     fn next(&mut self) -> Option<Result<Command, io::Error>> {
-        while let Some(b) = self.bytes_iter.next() {
+        while let Some(b) = self.read_byte_or_eof().transpose() {
             let b = match b {
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
