@@ -27,6 +27,11 @@ impl<W: io::Write> Writer<W> {
         }
     }
 
+    /// get the wrapped [`io::Write`]
+    pub fn writer(&mut self) -> &mut W {
+        &mut self.writer
+    }
+
     /// Writes a complete header with the fields from a `Header` struct from the parser.
     pub fn header(&mut self, h: &Header) -> io::Result<()> {
         if let Some(ref s) = h.date {
