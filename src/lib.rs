@@ -102,7 +102,7 @@ mod idcode;
 pub use idcode::IdCode;
 
 mod value;
-pub use value::Value;
+pub use value::{ Value, Vector, VectorIter };
 
 /// Error wrapping a static string message explaining why parsing failed.
 #[derive(Debug)]
@@ -463,7 +463,7 @@ pub enum Command {
     ChangeScalar(IdCode, Value),
 
     /// A `b0000 a` change to a vector variable
-    ChangeVector(IdCode, Vec<Value>),
+    ChangeVector(IdCode, Vector),
 
     /// A `r1.234 a` change to a real variable
     ChangeReal(IdCode, f64),

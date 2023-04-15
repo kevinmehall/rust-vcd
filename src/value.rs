@@ -1,4 +1,5 @@
 use std::fmt::{self, Display};
+use std::iter::FromIterator;
 use std::str::FromStr;
 
 use super::InvalidData;
@@ -35,7 +36,11 @@ impl Value {
 impl FromStr for Value {
     type Err = InvalidData;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Value::parse(*s.as_bytes().get(0).unwrap_or(&b' '))
+        if s.len() == 1 {
+            Value::parse(s.as_bytes()[0])
+        } else {
+            Err(InvalidData("invalid VCD value"))
+        }
     }
 }
 
@@ -64,4 +69,113 @@ impl Display for Value {
             }
         )
     }
+}
+
+/// Vector of `Value`
+/// 
+/// This currently wraps a `Vec<Value>` but could be implemented with
+/// a bitmap in the future.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Vector(Vec<Value>);
+
+impl Vector {
+    /// Returns the number of bits in the vector.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns an iterator over the values in the vector.
+    pub fn iter(&self) -> VectorIter {
+        VectorIter(self.0.iter())
+    }
+
+    /// Returns a `Vector` of the specified `width` filled with the value `v`
+    pub fn filled(v: Value, width: usize) -> Vector {
+        Vector(std::iter::repeat(v).take(width).collect())
+    }
+
+    /// Returns a vector of `width` zeros
+    pub fn zeros(width: usize) -> Vector {
+        Vector::filled(Value::V0, width)
+    }
+}
+
+impl Display for Vector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for v in self {
+            write!(f, "{}", v)?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Debug for Vector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Vector({})", self)
+    }
+}
+
+impl FromStr for Vector {
+    type Err = InvalidData;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.bytes().map(Value::parse).collect()
+    }
+}
+
+impl From<Vec<Value>> for Vector {
+    fn from(v: Vec<Value>) -> Self {
+        Vector(v)
+    }
+}
+
+impl From<Vector> for Vec<Value> {
+    fn from(v: Vector) -> Self {
+        v.0
+    }
+}
+
+impl<const N: usize> From<[Value; N]> for Vector {
+    fn from(v: [Value; N]) -> Self {
+        Vector(v.into())
+    }
+}
+
+/// Iterator for a `Vector`
+pub struct VectorIter<'a>(std::slice::Iter<'a, Value>);
+
+impl<'a> IntoIterator for &'a Vector {
+    type Item = Value;
+
+    type IntoIter = VectorIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> Iterator for VectorIter<'a> {
+    type Item = Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().copied()
+    }
+}
+
+impl FromIterator<Value> for Vector {
+    fn from_iter<T: IntoIterator<Item = Value>>(iter: T) -> Self {
+        Vector(iter.into_iter().collect())
+    }
+}
+
+#[test]
+fn test_vector_parse() {
+    assert_eq!("1010".parse::<Vector>().unwrap(), [Value::V1, Value::V0, Value::V1, Value::V0].into());
+    assert_eq!("xz".parse::<Vector>().unwrap(), [Value::X, Value::Z].into());
+    assert_eq!("X".parse::<Vector>().unwrap(), [Value::X].into());
+}
+
+#[test]
+fn test_vector_display() {
+    assert_eq!(format!("{}", Vector::from_iter([Value::V0, Value::V1, Value::X, Value::Z])), "01xz");
 }

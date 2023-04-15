@@ -239,7 +239,7 @@ impl<R: io::Read> Parser<R> {
             val.push(Value::parse(b)?);
         }
         let id = self.read_token_parse()?;
-        Ok(Command::ChangeVector(id, val))
+        Ok(Command::ChangeVector(id, val.into()))
     }
 
     fn parse_real(&mut self) -> Result<Command, io::Error> {
@@ -379,7 +379,7 @@ impl<P: io::Read> Iterator for Parser<P> {
 mod test {
     use crate::{
         Command::*, Parser, ReferenceIndex, ScopeItem, ScopeType, SimulationCommand::*,
-        TimescaleUnit, Value::*, Var, VarType,
+        TimescaleUnit, Value::*, Var, VarType, Vector,
     };
 
     #[test]
@@ -454,7 +454,7 @@ mod test {
 
         let expected = &[
             Begin(Dumpvars),
-            ChangeVector(2u32.into(), vec![X, X, X, X, X, X, X, X]),
+            ChangeVector(2u32.into(), [X, X, X, X, X, X, X, X].into()),
             ChangeScalar(3u32.into(), X),
             ChangeScalar(4u32.into(), V0),
             ChangeScalar(5u32.into(), X),
@@ -463,13 +463,13 @@ mod test {
             ChangeScalar(8u32.into(), V0),
             End(Dumpvars),
             Timestamp(0),
-            ChangeVector(2u32.into(), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeVector(2u32.into(), [V1, V0, V0, V0, V0, V0, V0, V1].into()),
             ChangeScalar(3u32.into(), V0),
             ChangeScalar(4u32.into(), V1),
             Timestamp(2211),
             ChangeScalar(6u32.into(), V0),
             Timestamp(2296),
-            ChangeVector(2u32.into(), vec![V0]),
+            ChangeVector(2u32.into(), [V0].into()),
             ChangeScalar(3u32.into(), V1),
             Timestamp(2302),
             ChangeScalar(3u32.into(), V0),
@@ -560,7 +560,7 @@ b00000000000000000000000000000000 t
         let expected = &[
             Timestamp(0),
             ChangeScalar(0u32.into(), V1),
-            ChangeVector(83u32.into(), vec![V0; 32]),
+            ChangeVector(83u32.into(), [V0; 32].into()),
         ];
 
         for (i, e) in b.zip(expected.iter()) {
@@ -676,60 +676,54 @@ b1 n0
         let expected = &[
             Timestamp(0),
             ChangeScalar(0u32.into(), V1),
-            ChangeVector(
-                83u32.into(),
-                vec![
-                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
-                    V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
-                ],
-            ),
-            ChangeVector(1581u32.into(), vec![V1]),
-            ChangeVector(1675u32.into(), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
-            ChangeVector(1769u32.into(), vec![V0]),
-            ChangeVector(1863u32.into(), vec![V0]),
-            ChangeVector(1957u32.into(), vec![V0]),
-            ChangeVector(2051u32.into(), vec![V1]),
-            ChangeVector(2145u32.into(), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
-            ChangeVector(2239u32.into(), vec![V1]),
-            ChangeVector(2333u32.into(), vec![V0]),
-            ChangeVector(2427u32.into(), vec![V0, V0, V0, V0, V0]),
-            ChangeVector(143051u32.into(), vec![V0, V0, V0, V0, V0]),
-            ChangeVector(151887u32.into(), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(83u32.into(), Vector::zeros(32)),
+            ChangeVector(1581u32.into(), [V1].into()),
+            ChangeVector(1675u32.into(), [V0, V0, V0, V0, V0, V0, V0, V0].into()),
+            ChangeVector(1769u32.into(), [V0].into()),
+            ChangeVector(1863u32.into(), [V0].into()),
+            ChangeVector(1957u32.into(), [V0].into()),
+            ChangeVector(2051u32.into(), [V1].into()),
+            ChangeVector(2145u32.into(), [V0, V0, V0, V0, V0, V0, V0, V0].into()),
+            ChangeVector(2239u32.into(), [V1].into()),
+            ChangeVector(2333u32.into(), [V0].into()),
+            ChangeVector(2427u32.into(), [V0, V0, V0, V0, V0].into()),
+            ChangeVector(143051u32.into(), [V0, V0, V0, V0, V0].into()),
+            ChangeVector(151887u32.into(), [V0, V0, V0, V0, V0, V0, V0, V0].into()),
             Timestamp(5),
-            ChangeVector(1581u32.into(), vec![V0]),
+            ChangeVector(1581u32.into(), [V0].into()),
             Timestamp(10),
             ChangeScalar(0u32.into(), V1),
             ChangeVector(
                 83u32.into(),
-                vec![
+                [
                     V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
                     V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1,
-                ],
+                ].into(),
             ),
-            ChangeVector(1581u32.into(), vec![V1]),
-            ChangeVector(1675u32.into(), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
-            ChangeVector(1769u32.into(), vec![V0]),
-            ChangeVector(1863u32.into(), vec![V0]),
-            ChangeVector(1957u32.into(), vec![V0]),
-            ChangeVector(2051u32.into(), vec![V1]),
-            ChangeVector(2145u32.into(), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
-            ChangeVector(2239u32.into(), vec![V1]),
-            ChangeVector(2333u32.into(), vec![V0]),
-            ChangeVector(2427u32.into(), vec![V0, V0, V0, V0, V0]),
-            ChangeVector(143051u32.into(), vec![V0, V0, V0, V0, V0]),
-            ChangeVector(151887u32.into(), vec![V0, V0, V0, V0, V0, V0, V0, V0]),
+            ChangeVector(1581u32.into(), [V1].into()),
+            ChangeVector(1675u32.into(), [V0, V0, V0, V0, V0, V0, V0, V0].into()),
+            ChangeVector(1769u32.into(), [V0].into()),
+            ChangeVector(1863u32.into(), [V0].into()),
+            ChangeVector(1957u32.into(), [V0].into()),
+            ChangeVector(2051u32.into(), [V1].into()),
+            ChangeVector(2145u32.into(), [V0, V0, V0, V0, V0, V0, V0, V0].into()),
+            ChangeVector(2239u32.into(), [V1].into()),
+            ChangeVector(2333u32.into(), [V0].into()),
+            ChangeVector(2427u32.into(), [V0, V0, V0, V0, V0].into()),
+            ChangeVector(143051u32.into(), [V0, V0, V0, V0, V0].into()),
+            ChangeVector(151887u32.into(), [V0, V0, V0, V0, V0, V0, V0, V0].into()),
             Timestamp(15),
-            ChangeVector(1581u32.into(), vec![V0]),
+            ChangeVector(1581u32.into(), [V0].into()),
             Timestamp(20),
             ChangeScalar(0u32.into(), V1),
             ChangeVector(
                 83u32.into(),
-                vec![
+                [
                     V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V0,
                     V0, V0, V0, V0, V0, V0, V0, V0, V0, V0, V1, V0,
-                ],
+                ].into(),
             ),
-            ChangeVector(1581u32.into(), vec![V1]),
+            ChangeVector(1581u32.into(), [V1].into()),
         ];
 
         for (i, e) in b.zip(expected.iter()) {
@@ -823,7 +817,7 @@ b1 n0
 
         let expected = &[
             Begin(Dumpvars),
-            ChangeVector(2u32.into(), vec![X, X, X, X, X, X, X, X]),
+            ChangeVector(2u32.into(), [X, X, X, X, X, X, X, X].into()),
             ChangeScalar(3u32.into(), X),
             ChangeScalar(4u32.into(), V0),
             ChangeScalar(5u32.into(), X),
@@ -832,13 +826,13 @@ b1 n0
             ChangeScalar(8u32.into(), V0),
             End(Dumpvars),
             Timestamp(0),
-            ChangeVector(2u32.into(), vec![V1, V0, V0, V0, V0, V0, V0, V1]),
+            ChangeVector(2u32.into(), [V1, V0, V0, V0, V0, V0, V0, V1].into()),
             ChangeScalar(3u32.into(), V0),
             ChangeScalar(4u32.into(), V1),
             Timestamp(2211),
             ChangeScalar(6u32.into(), V0),
             Timestamp(2296),
-            ChangeVector(2u32.into(), vec![V0]),
+            ChangeVector(2u32.into(), [V0].into()),
             ChangeScalar(3u32.into(), V1),
             Timestamp(2302),
             ChangeScalar(3u32.into(), V0),

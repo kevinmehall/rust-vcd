@@ -196,7 +196,7 @@ impl<W: io::Write> Writer<W> {
     }
 
     /// Writes a change to a vector variable.
-    pub fn change_vector(&mut self, id: IdCode, v: &[Value]) -> io::Result<()> {
+    pub fn change_vector(&mut self, id: IdCode, v: impl IntoIterator<Item=Value>) -> io::Result<()> {
         write!(self.writer, "b")?;
         for i in v {
             write!(self.writer, "{}", i)?
@@ -238,7 +238,7 @@ impl<W: io::Write> Writer<W> {
             Enddefinitions => self.enddefinitions(),
             Timestamp(t) => self.timestamp(t),
             ChangeScalar(i, v) => self.change_scalar(i, v),
-            ChangeVector(i, ref v) => self.change_vector(i, &v[..]),
+            ChangeVector(i, ref v) => self.change_vector(i, v),
             ChangeReal(i, v) => self.change_real(i, v),
             ChangeString(i, ref v) => self.change_string(i, v),
             Begin(c) => self.begin(c),
