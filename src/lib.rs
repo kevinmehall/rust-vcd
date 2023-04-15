@@ -373,6 +373,7 @@ impl Display for VarType {
 
 /// Information on a VCD scope as represented by a `$scope` command and its children.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct Scope {
     pub scope_type: ScopeType,
     pub identifier: String,
@@ -380,6 +381,10 @@ pub struct Scope {
 }
 
 impl Scope {
+    pub fn new(scope_type: ScopeType, identifier: String) -> Self {
+        Self { scope_type, identifier, children: Vec::new() }
+    }
+
     /// Looks up a variable by reference.
     pub fn find_var<'a>(&'a self, reference: &str) -> Option<&'a Var> {
         for c in &self.children {
@@ -453,6 +458,7 @@ impl Display for ReferenceIndex {
 
 /// Information on a VCD variable as represented by a `$var` command.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct Var {
     pub var_type: VarType,
     pub size: u32,
@@ -461,8 +467,21 @@ pub struct Var {
     pub index: Option<ReferenceIndex>,
 }
 
+impl Var {
+    pub fn new(
+        var_type: VarType,
+        size: u32,
+        code: IdCode,
+        reference: String,
+        index: Option<ReferenceIndex>,
+    ) -> Self {
+        Self { var_type, size, code, reference, index }
+    }
+}
+
 /// An item in a scope -- either a child scope or a variable.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum ScopeItem {
     Scope(Scope),
     Var(Var),
