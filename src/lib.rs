@@ -415,7 +415,7 @@ impl FromStr for ReferenceIndex {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use std::io::{Error, ErrorKind};
         use ReferenceIndex::*;
-        let s = s.trim_start_matches('[').trim_end_matches(']');
+        let s = s.trim_start_matches('[').trim_start_matches('-').trim_end_matches(']');
         match s.find(':') {
             Some(idx) => {
                 let msb: u32 = s[..idx]
