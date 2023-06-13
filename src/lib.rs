@@ -404,6 +404,7 @@ impl Default for Scope {
 }
 
 /// Index of a VCD variable reference, either a bit select index `[i]` or a range index `[msb:lsb]`
+/// Negative index discard the sign
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ReferenceIndex {
     BitSelect(u32),
@@ -415,7 +416,7 @@ impl FromStr for ReferenceIndex {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use std::io::{Error, ErrorKind};
         use ReferenceIndex::*;
-        let s = s.trim_start_matches('[').trim_start_matches('-').trim_end_matches(']');
+        let s = s.trim_start_matches(['[', '-']).trim_end_matches(']');
         match s.find(':') {
             Some(idx) => {
                 let msb: u32 = s[..idx]
@@ -423,7 +424,7 @@ impl FromStr for ReferenceIndex {
                     .parse()
                     .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
                 let lsb: u32 = s[idx..]
-                    .trim_start_matches(':')
+                    .trim_start_matches([':', '-'])
                     .trim()
                     .parse()
                     .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
