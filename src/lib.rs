@@ -644,3 +644,25 @@ impl Header {
         scope.find_var(path[path.len() - 1].borrow())
     }
 }
+
+
+#[cfg(test)]
+mod test{
+    use std::str::FromStr;
+
+    use crate::ReferenceIndex;
+
+    #[test]
+    fn test_negative_ref_index(){
+        let tests : &[(i32, i32)] = &[(-1, 0), (0, -1), (-1, -1)];
+        for (tstart, tstop) in tests{
+            match ReferenceIndex::from_str(&format!("[{tstart}:{tstop}]")).unwrap(){
+                ReferenceIndex::BitSelect(_) => panic!("Must be range"),
+                ReferenceIndex::Range(start, stop) => {
+                    assert_eq!(start, tstart.unsigned_abs());
+                    assert_eq!(stop, tstop.unsigned_abs());
+                },
+            }
+        }
+    }
+}
