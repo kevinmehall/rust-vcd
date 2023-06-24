@@ -87,46 +87,53 @@
 //! assert_eq!(value, data);
 //! ```
 
-use std::error::Error;
 use std::fmt::{self, Display};
-use std::io;
 
 mod read;
-pub use read::Parser;
+pub use read::{ Parser, ParseError, ParseErrorKind };
 
 mod write;
 pub use write::Writer;
 
 mod idcode;
-pub use idcode::IdCode;
+pub use idcode::{IdCode, InvalidIdCode};
 
 mod value;
-pub use value::{ Value, Vector, VectorIter };
+pub use value::{ Value, Vector, VectorIter, InvalidValue };
 
 mod timescale;
-pub use timescale::TimescaleUnit;
+pub use timescale::{ TimescaleUnit, InvalidTimescaleUnit };
 
-pub use scope::{Scope, ScopeItem, ScopeType, Var, VarType, ReferenceIndex};
 mod scope;
+pub use scope::{
+    Scope,
+    ScopeItem,
+    ScopeType,
+    InvalidScopeType,
+    Var,
+    VarType,
+    InvalidVarType,
+    ReferenceIndex,
+    InvalidReferenceIndex,
+};
 
-/// Error wrapping a static string message explaining why parsing failed.
-#[derive(Debug)]
-pub struct InvalidData(&'static str);
-impl Display for InvalidData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
+macro_rules! unit_error_struct {
+    ($name:ident, $err:literal) => {
+        #[doc = concat!("Parse error for ", $err, ".")]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        #[non_exhaustive]
+        pub struct $name;
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, $err)
+            }
+        }
+
+        impl std::error::Error for $name {}
+    };
 }
-impl Error for InvalidData {
-    fn description(&self) -> &str {
-        self.0
-    }
-}
-impl From<InvalidData> for io::Error {
-    fn from(e: InvalidData) -> io::Error {
-        io::Error::new(io::ErrorKind::InvalidData, e.0)
-    }
-}
+pub(crate) use unit_error_struct;
 
 /// An element in a VCD file.
 #[derive(Debug, PartialEq, Clone)]

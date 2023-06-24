@@ -1,7 +1,26 @@
+use std::error::Error;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use crate::InvalidData;
+/// Parse error for invalid ID code.
+#[derive(Debug, Clone)]
+pub enum InvalidIdCode {
+    Empty,
+    InvalidChars,
+    TooLong,
+}
+
+impl Display for InvalidIdCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => write!(f, "ID cannot be empty"),
+            Self::InvalidChars => write!(f, "invalid characters in ID"),
+            Self::TooLong => write!(f, "ID too long"),
+        }
+    }
+}
+
+impl Error for InvalidIdCode { }
 
 /// An ID used within the file to refer to a particular variable.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
@@ -12,20 +31,20 @@ const ID_CHAR_MAX: u8 = b'~';
 const NUM_ID_CHARS: u64 = (ID_CHAR_MAX - ID_CHAR_MIN + 1) as u64;
 
 impl IdCode {
-    fn new(v: &[u8]) -> Result<IdCode, InvalidData> {
+    fn new(v: &[u8]) -> Result<IdCode, InvalidIdCode> {
         if v.is_empty() {
-            return Err(InvalidData("ID cannot be empty"));
+            return Err(InvalidIdCode::Empty);
         }
         let mut result = 0u64;
         for &i in v.iter().rev() {
             if i < ID_CHAR_MIN || i > ID_CHAR_MAX {
-                return Err(InvalidData("invalid characters in ID"));
+                return Err(InvalidIdCode::InvalidChars);
             }
             let c = ((i - ID_CHAR_MIN) as u64) + 1;
             result = result
                 .checked_mul(NUM_ID_CHARS)
                 .and_then(|x| x.checked_add(c))
-                .ok_or(InvalidData("ID too long"))?;
+                .ok_or(InvalidIdCode::TooLong)?;
         }
         Ok(IdCode(result - 1))
     }
@@ -40,7 +59,7 @@ impl IdCode {
 }
 
 impl FromStr for IdCode {
-    type Err = InvalidData;
+    type Err = InvalidIdCode;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         IdCode::new(s.as_bytes())
     }

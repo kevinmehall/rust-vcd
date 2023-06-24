@@ -2,8 +2,6 @@ use std::fmt::{self, Display};
 use std::iter::FromIterator;
 use std::str::FromStr;
 
-use super::InvalidData;
-
 /// A four-valued logic scalar value.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Value {
@@ -20,26 +18,27 @@ pub enum Value {
     Z,
 }
 
+crate::unit_error_struct!(InvalidValue, "invalid VCD logic value");
+
 impl Value {
-    pub(crate) fn parse(v: u8) -> Result<Value, InvalidData> {
+    pub(crate) fn parse(v: u8) -> Result<Value, InvalidValue> {
         use Value::*;
         match v {
             b'0' => Ok(V0),
             b'1' => Ok(V1),
             b'x' | b'X' => Ok(X),
             b'z' | b'Z' => Ok(Z),
-            _ => Err(InvalidData("invalid VCD value")),
+            _ => Err(InvalidValue),
         }
     }
 }
 
 impl FromStr for Value {
-    type Err = InvalidData;
+    type Err = InvalidValue;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() == 1 {
-            Value::parse(s.as_bytes()[0])
-        } else {
-            Err(InvalidData("invalid VCD value"))
+        match s.as_bytes() {
+            &[c] => Value::parse(c),
+            _ => Err(InvalidValue)
         }
     }
 }
@@ -116,7 +115,7 @@ impl fmt::Debug for Vector {
 }
 
 impl FromStr for Vector {
-    type Err = InvalidData;
+    type Err = InvalidValue;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.bytes().map(Value::parse).collect()

@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use crate::{IdCode, InvalidData};
+use crate::IdCode;
 
 /// A type of scope, as used in the `$scope` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -14,8 +14,10 @@ pub enum ScopeType {
     Fork,
 }
 
+crate::unit_error_struct!(InvalidScopeType, "invalid scope type");
+
 impl FromStr for ScopeType {
-    type Err = InvalidData;
+    type Err = InvalidScopeType;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use ScopeType::*;
         match s {
@@ -24,7 +26,7 @@ impl FromStr for ScopeType {
             "function" => Ok(Function),
             "begin" => Ok(Begin),
             "fork" => Ok(Fork),
-            _ => Err(InvalidData("invalid scope type")),
+            _ => Err(InvalidScopeType),
         }
     }
 }
@@ -70,8 +72,10 @@ pub enum VarType {
     String,
 }
 
+crate::unit_error_struct!(InvalidVarType, "invalid variable type");
+
 impl FromStr for VarType {
-    type Err = InvalidData;
+    type Err = InvalidVarType;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use VarType::*;
         match s {
@@ -93,7 +97,7 @@ impl FromStr for VarType {
             "wire" => Ok(Wire),
             "wor" => Ok(WOr),
             "string" => Ok(String),
-            _ => Err(InvalidData("invalid variable type")),
+            _ => Err(InvalidVarType),
         }
     }
 }
@@ -145,7 +149,7 @@ impl Scope {
     /// Looks up a variable by reference.
     pub fn find_var<'a>(&'a self, reference: &str) -> Option<&'a Var> {
         for c in &self.children {
-            if let &ScopeItem::Var(ref v) = c {
+            if let ScopeItem::Var(v) = c {
                 if v.reference == reference {
                     return Some(v);
                 }
@@ -172,31 +176,32 @@ pub enum ReferenceIndex {
     Range(u32, u32),
 }
 
+crate::unit_error_struct!(InvalidReferenceIndex, "invalid reference index");
+
 impl FromStr for ReferenceIndex {
-    type Err = std::io::Error;
+    type Err = InvalidReferenceIndex;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use std::io::{Error, ErrorKind};
-        use ReferenceIndex::*;
-        let s = s.trim_start_matches('[').trim_end_matches(']');
-        match s.find(':') {
-            Some(idx) => {
-                let msb: u32 = s[..idx]
+        let s = s.strip_prefix("[").ok_or(InvalidReferenceIndex)?;
+        let s = s.strip_suffix("]").ok_or(InvalidReferenceIndex)?;
+        match s.split_once(':') {
+            Some((msb_str, lsb_str)) => {
+                let msb: u32 = msb_str
                     .trim()
                     .parse()
-                    .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-                let lsb: u32 = s[idx..]
+                    .map_err(|_| InvalidReferenceIndex)?;
+                let lsb: u32 = lsb_str
                     .trim_start_matches(':')
                     .trim()
                     .parse()
-                    .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-                Ok(Range(msb, lsb))
+                    .map_err(|_| InvalidReferenceIndex)?;
+                Ok(ReferenceIndex::Range(msb, lsb))
             }
             None => {
                 let idx = s
                     .trim()
                     .parse()
-                    .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-                Ok(BitSelect(idx))
+                    .map_err(|_| InvalidReferenceIndex{})?;
+                Ok(ReferenceIndex::BitSelect(idx))
             }
         }
     }

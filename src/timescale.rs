@@ -1,8 +1,6 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use super::InvalidData;
-
 /// A unit of time for the `$timescale` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TimescaleUnit {
@@ -14,8 +12,10 @@ pub enum TimescaleUnit {
     FS,
 }
 
+crate::unit_error_struct!(InvalidTimescaleUnit, "invalid timescale unit");
+
 impl FromStr for TimescaleUnit {
-    type Err = InvalidData;
+    type Err = InvalidTimescaleUnit;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use TimescaleUnit::*;
         match s {
@@ -25,7 +25,7 @@ impl FromStr for TimescaleUnit {
             "ns" => Ok(NS),
             "ps" => Ok(PS),
             "fs" => Ok(FS),
-            _ => Err(InvalidData("invalid timescale unit")),
+            _ => Err(InvalidTimescaleUnit),
         }
     }
 }

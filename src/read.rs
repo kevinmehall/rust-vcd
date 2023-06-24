@@ -1,21 +1,22 @@
-use super::InvalidData;
-use std::io;
+use std::num::{ParseIntError, ParseFloatError};
+use std::{io, fmt};
 use std::str::{from_utf8, FromStr};
 
 use crate::{
-    Command, Header, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand, Value, Var,
+    Command, Header, InvalidIdCode, InvalidReferenceIndex, InvalidScopeType, InvalidTimescaleUnit,
+    InvalidValue, InvalidVarType, ReferenceIndex, Scope, ScopeItem, ScopeType, SimulationCommand,
+    Value, Var,
 };
 
 fn whitespace_byte(b: u8) -> bool {
-    match b {
-        b' ' | b'\n' | b'\r' | b'\t' => true,
-        _ => false,
-    }
+    matches!(b, b' ' | b'\n' | b'\r' | b'\t')
 }
 
 /// VCD parser. Wraps an `io::Read` and acts as an iterator of `Command`s.
 pub struct Parser<R: io::Read> {
     reader: R,
+    line: u64,
+    end_of_line: bool,
     simulation_command: Option<SimulationCommand>,
 }
 
@@ -29,6 +30,8 @@ impl<R: io::Read> Parser<R> {
     pub fn new(reader: R) -> Parser<R> {
         Parser {
             reader,
+            line: 1,
+            end_of_line: false,
             simulation_command: None,
         }
     }
@@ -38,8 +41,26 @@ impl<R: io::Read> Parser<R> {
         &mut self.reader
     }
 
+    /// Get the current line number.
+    pub fn line(&self) -> u64 {
+        self.line
+    }
+
+    fn error(&self, k: impl Into<ParseErrorKind>) -> ParseError {
+        ParseError { line: self.line, kind: k.into() }
+    }
+
     fn read_byte_or_eof(&mut self) -> Result<Option<u8>, io::Error> {
-        io::Read::bytes(&mut self.reader).next().transpose()
+        let b = io::Read::bytes(&mut self.reader).next().transpose();
+
+        // delay incrementing the line number until the first character of the next line
+        // so that errors at the end of the line refer to the correct line number
+        if self.end_of_line {
+            self.line += 1;
+        }
+        self.end_of_line = matches!(b, Ok(Some(b'\n')));
+
+        b
     }
 
     fn read_byte(&mut self) -> Result<u8, io::Error> {
@@ -67,7 +88,7 @@ impl<R: io::Read> Parser<R> {
             if let Some(p) = buf.get_mut(len) {
                 *p = b;
             } else {
-                return Err(InvalidData("token too long").into());
+                return Err(self.error(ParseErrorKind::TokenTooLong).into());
             }
 
             len += 1;
@@ -76,7 +97,7 @@ impl<R: io::Read> Parser<R> {
     }
 
     fn read_token_str<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a str, io::Error> {
-        from_utf8(self.read_token(buf)?).map_err(|_| InvalidData("string is not UTF-8").into())
+        from_utf8(self.read_token(buf)?).map_err(|_| self.error(ParseErrorKind::InvalidUtf8).into())
     }
 
     fn read_token_string(&mut self) -> Result<String, io::Error> {
@@ -92,18 +113,18 @@ impl<R: io::Read> Parser<R> {
             }
             r.push(b);
         }
-        String::from_utf8(r).map_err(|_| InvalidData("string is not UTF-8").into())
+        String::from_utf8(r).map_err(|_| self.error(ParseErrorKind::InvalidUtf8).into())
     }
 
     fn read_token_parse<T>(&mut self) -> Result<T, io::Error>
     where
         T: FromStr,
-        <T as FromStr>::Err: 'static + ::std::error::Error + Send + Sync,
+        <T as FromStr>::Err: Into<ParseErrorKind>,
     {
         let mut buf = [0; 32];
         let tok = self.read_token_str(&mut buf)?;
         tok.parse()
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+            .map_err(|e| self.error(e).into())
     }
 
     fn read_command_end(&mut self) -> Result<(), io::Error> {
@@ -112,7 +133,7 @@ impl<R: io::Read> Parser<R> {
         if tok == b"$end" {
             Ok(())
         } else {
-            Err(InvalidData("expected $end").into())
+            Err(self.error(ParseErrorKind::ExpectedEndCommand).into())
         }
     }
 
@@ -127,20 +148,8 @@ impl<R: io::Read> Parser<R> {
         let len = r.len() - 4;
         r.truncate(len);
 
-        let s = from_utf8(&r).map_err(|_| io::Error::from(InvalidData("string is not UTF-8")))?;
+        let s = from_utf8(&r).map_err(|_| io::Error::from(self.error(ParseErrorKind::InvalidUtf8)))?;
         Ok(s.trim().to_string()) // TODO: don't reallocate
-    }
-
-    fn read_reference_index_end(&mut self) -> Result<Option<ReferenceIndex>, io::Error> {
-        let mut buf = [0; 32];
-        let tok = self.read_token_str(&mut buf)?;
-        if tok.as_bytes() == b"$end" {
-            return Ok(None);
-        }
-
-        let index: ReferenceIndex = tok.parse()?;
-        self.read_command_end()?;
-        Ok(Some(index))
     }
 
     fn parse_command(&mut self) -> Result<Command, io::Error> {
@@ -162,11 +171,13 @@ impl<R: io::Read> Parser<R> {
                     Some(idx) => (&tok[0..idx], &tok[idx..]),
                     None => (tok, self.read_token_str(&mut buf2)?),
                 };
-                self.read_command_end()?;
                 let quantity = num_str
                     .parse()
-                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-                let unit = unit_str.parse()?;
+                    .map_err(|e| self.error(e))?;
+                let unit = unit_str
+                    .parse()
+                    .map_err(|e| self.error(e))?;
+                self.read_command_end()?;
                 Ok(Timescale(quantity, unit))
             }
             b"scope" => {
@@ -184,7 +195,22 @@ impl<R: io::Read> Parser<R> {
                 let size = self.read_token_parse()?;
                 let code = self.read_token_parse()?;
                 let reference = self.read_token_string()?;
-                let index = self.read_reference_index_end()?;
+
+                let mut buf = [0; 32];
+                let mut tok = self.read_token_str(&mut buf)?;
+                let index = {
+                    if tok.starts_with("[") {
+                        let r = Some(tok.parse::<ReferenceIndex>().map_err(|e| self.error(e))?);
+                        tok = self.read_token_str(&mut buf)?;
+                        r
+                    } else {
+                        None
+                    }
+                };
+
+                if tok.as_bytes() != b"$end" {
+                    return Err(self.error(ParseErrorKind::ExpectedEndCommand).into());
+                }
                 Ok(VarDef(var_type, size, code, reference, index))
             }
             b"enddefinitions" => {
@@ -202,11 +228,11 @@ impl<R: io::Read> Parser<R> {
                 if let Some(c) = self.simulation_command.take() {
                     Ok(End(c))
                 } else {
-                    Err(InvalidData("unmatched $end").into())
+                    Err(self.error(ParseErrorKind::UnmatchedEnd).into())
                 }
             }
 
-            _ => Err(InvalidData("invalid keyword").into()),
+            _ => Err(self.error(ParseErrorKind::UnknownCommand).into()),
         }
     }
 
@@ -221,7 +247,7 @@ impl<R: io::Read> Parser<R> {
 
     fn parse_scalar(&mut self, initial: u8) -> Result<Command, io::Error> {
         let id = self.read_token_parse()?;
-        let val = Value::parse(initial)?;
+        let val = Value::parse(initial).map_err(|e| self.error(e))?;
         Ok(Command::ChangeScalar(id, val))
     }
 
@@ -236,7 +262,7 @@ impl<R: io::Read> Parser<R> {
                     continue;
                 }
             }
-            val.push(Value::parse(b)?);
+            val.push(Value::parse(b).map_err(|e| self.error(e))?);
         }
         let id = self.read_token_parse()?;
         Ok(Command::ChangeVector(id, val.into()))
@@ -280,7 +306,7 @@ impl<R: io::Read> Parser<R> {
                 Some(Ok(Comment(comment))) => {
                     children.push(ScopeItem::Comment(comment));
                 }
-                Some(Ok(_)) => return Err(InvalidData("unexpected command in $scope").into()),
+                Some(Ok(_)) => return Err(self.error(ParseErrorKind::UnexpectedHeaderCommand).into()),
                 Some(Err(e)) => return Err(e),
                 None => {
                     return Err(io::Error::new(
@@ -334,7 +360,7 @@ impl<R: io::Read> Parser<R> {
                         .items
                         .push(ScopeItem::Scope(self.parse_scope(tp, id)?));
                 }
-                Some(Ok(_)) => return Err(InvalidData("unexpected command in header").into()),
+                Some(Ok(_)) => return Err(self.error(ParseErrorKind::UnexpectedHeaderCommand).into()),
                 Some(Err(e)) => return Err(e),
                 None => {
                     return Err(io::Error::new(
@@ -366,7 +392,7 @@ impl<P: io::Read> Iterator for Parser<P> {
                 b's' | b'S' => return Some(self.parse_string()),
                 _ => {
                     return Some(Err(
-                        InvalidData("unexpected character at start of command").into()
+                        self.error(ParseErrorKind::UnexpectedCharacter).into()
                     ))
                 }
             }
@@ -375,11 +401,115 @@ impl<P: io::Read> Iterator for Parser<P> {
     }
 }
 
+/// Error from parsing VCD
+#[derive(Debug, Clone)]
+pub struct ParseError {
+    line: u64,
+    kind: ParseErrorKind,
+}
+
+impl ParseError {
+    /// Returns the 1-indexed line number in the VCD file where the error occurred.
+    pub fn line(&self) -> u64 { self.line }
+
+    /// Returns an enum value identifying the kind of error.
+    pub fn kind(&self) -> &ParseErrorKind { &self.kind }
+}
+
+/// Errors that can be encountered while parsing.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum ParseErrorKind {
+    InvalidUtf8,
+    UnexpectedCharacter,
+    TokenTooLong,
+    ExpectedEndCommand,
+    UnmatchedEnd,
+    UnknownCommand,
+    UnexpectedHeaderCommand,
+    ParseIntError(ParseIntError),
+    ParseFloatError(ParseFloatError),
+    InvalidTimescaleUnit(InvalidTimescaleUnit),
+    InvalidScopeType(InvalidScopeType),
+    InvalidVarType(InvalidVarType),
+    InvalidReferenceIndex(InvalidReferenceIndex),
+    InvalidValueChar(InvalidValue),
+    InvalidIdCode(InvalidIdCode),
+}
+
+impl std::error::Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} at line {}", self.kind, self.line)
+    }
+}
+
+impl fmt::Display for ParseErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseErrorKind::InvalidUtf8 => write!(f, "invalid UTF-8"),
+            ParseErrorKind::UnexpectedCharacter => write!(f, "unexpected character at start of command"),
+            ParseErrorKind::TokenTooLong => write!(f, "token too long"),
+            ParseErrorKind::ExpectedEndCommand => write!(f, "expected `$end`"),
+            ParseErrorKind::UnmatchedEnd => write!(f, "unmatched `$end`"),
+            ParseErrorKind::UnknownCommand => write!(f, "unknown command"),
+            ParseErrorKind::UnexpectedHeaderCommand => write!(f, "unexpected command in header"),
+            ParseErrorKind::ParseIntError(e) => write!(f, "{}", e),
+            ParseErrorKind::ParseFloatError(e) => write!(f, "{}", e),
+            ParseErrorKind::InvalidTimescaleUnit(e) => write!(f, "{}", e),
+            ParseErrorKind::InvalidScopeType(e) => write!(f, "{}", e),
+            ParseErrorKind::InvalidVarType(e) => write!(f, "{}", e),
+            ParseErrorKind::InvalidReferenceIndex(e) => write!(f, "{}", e),
+            ParseErrorKind::InvalidValueChar(e) => write!(f, "{}", e),
+            ParseErrorKind::InvalidIdCode(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl From<ParseIntError> for ParseErrorKind {
+    fn from(e: ParseIntError) -> Self { ParseErrorKind::ParseIntError(e) }
+}
+
+impl From<ParseFloatError> for ParseErrorKind {
+    fn from(e: ParseFloatError) -> Self { ParseErrorKind::ParseFloatError(e) }
+}
+
+impl From<InvalidScopeType> for ParseErrorKind {
+    fn from(e: InvalidScopeType) -> Self { ParseErrorKind::InvalidScopeType(e) }
+}
+
+impl From<InvalidVarType> for ParseErrorKind {
+    fn from(e: InvalidVarType) -> Self { ParseErrorKind::InvalidVarType(e) }
+}
+
+impl From<InvalidTimescaleUnit> for ParseErrorKind {
+    fn from(e: InvalidTimescaleUnit) -> Self { ParseErrorKind::InvalidTimescaleUnit(e) }
+}
+
+impl From<InvalidReferenceIndex> for ParseErrorKind {
+    fn from(e: InvalidReferenceIndex) -> Self { ParseErrorKind::InvalidReferenceIndex(e) }
+}
+
+impl From<InvalidIdCode> for ParseErrorKind {
+    fn from(e: InvalidIdCode) -> Self { ParseErrorKind::InvalidIdCode(e) }
+}
+
+impl From<InvalidValue> for ParseErrorKind {
+    fn from(e: InvalidValue) -> Self { ParseErrorKind::InvalidValueChar(e) }
+}
+
+impl From<ParseError> for io::Error {
+    fn from(e: ParseError) -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, e)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
         Command::*, Parser, ReferenceIndex, ScopeItem, ScopeType, SimulationCommand::*,
-        TimescaleUnit, Value::*, Var, VarType, Vector,
+        TimescaleUnit, Value::*, Var, VarType, Vector, ParseError, ParseErrorKind,
     };
 
     #[test]
@@ -842,5 +972,37 @@ b1 n0
         for (i, e) in b.zip(expected.iter()) {
             assert_eq!(&i.unwrap(), e);
         }
+    }
+
+    #[test]
+    fn test_err_in_header() {
+        let text = b"
+        $timescale 100 ns $end
+        $scope module logic $end
+        $var invalid 1 $ x $end
+        ";
+
+        let err = Parser::new(&text[..]).parse_header().unwrap_err();
+        let err: Box<ParseError> = err.into_inner().unwrap().downcast().unwrap();
+        assert!(matches!(err.kind, ParseErrorKind::InvalidVarType(..)));
+        assert_eq!(err.line(), 4);
+    }
+
+    #[test]
+    fn test_err_in_data() {
+        let text = b"
+        $timescale 100 ns $end
+        $scope module logic $end
+        $var wire 1 $ x $end
+        $upscope $end
+        $enddefinitions $end
+        n$
+        x$
+        ";
+
+        let err = Parser::new(&text[..]).find_map(|f| f.err()).unwrap();
+        let err: Box<ParseError> = err.into_inner().unwrap().downcast().unwrap();
+        assert!(matches!(err.kind, ParseErrorKind::UnexpectedCharacter), "{:?}", err);
+        assert_eq!(err.line(), 7);
     }
 }
