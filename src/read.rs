@@ -12,7 +12,35 @@ fn whitespace_byte(b: u8) -> bool {
     matches!(b, b' ' | b'\n' | b'\r' | b'\t')
 }
 
-/// VCD parser. Wraps an `io::Read` and acts as an iterator of `Command`s.
+/// VCD parser.
+/// 
+/// Wraps [`std::io::Read`] and acts as an iterator of [`Command`]s.
+/// 
+/// ### Example
+/// 
+/// ```rust,no_run
+/// # use std::error::Error;
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// use std::{io::BufReader, fs::File};
+/// use vcd::{Parser, Command};
+/// 
+/// let mut reader = Parser::new(BufReader::new(File::open("test.vcd")?));
+/// let header = reader.parse_header()?;
+/// 
+/// while let Some(command_result) = reader.next() {
+///     let command = command_result?;
+/// 
+///     match command {
+///         Command::Timestamp(t) => println!("Time is {t}"),
+///         Command::ChangeScalar(i, v) => println!("{i} set to {v}"),
+///         Command::ChangeVector(i, v) => println!("{i} set to {v}"),
+///         Command::ChangeReal(i, v) => println!("{i} set to {v}"),
+///         Command::ChangeString(i, v) => println!("{i} set to {v}"),
+///         command => println!("Unexpected {command:?} at line {line}", line = reader.line()),
+///     }
+/// }
+/// # Ok(()) }
+/// ```
 pub struct Parser<R: io::Read> {
     reader: R,
     line: u64,
@@ -21,10 +49,10 @@ pub struct Parser<R: io::Read> {
 }
 
 impl<R: io::Read> Parser<R> {
-    /// Creates a parser wrapping an `io::Read`.
+    /// Creates a parser wrapping an [`io::Read`].
     ///
     /// ```
-    /// let buf = b"...";
+    /// # let buf = b"...";
     /// let mut vcd = vcd::Parser::new(&buf[..]);
     /// ```
     pub fn new(reader: R) -> Parser<R> {
@@ -36,12 +64,16 @@ impl<R: io::Read> Parser<R> {
         }
     }
 
-    /// get the wrapped [`io::Read`]
+    /// Get the wrapped [`io::Read`].
+    /// 
+    /// Moving the cursor position may confuse the parser.
     pub fn reader(&mut self) -> &mut R {
         &mut self.reader
     }
 
     /// Get the current line number.
+    /// 
+    /// The line number is 1-indexed (first line is numbered 1).
     pub fn line(&self) -> u64 {
         self.line
     }

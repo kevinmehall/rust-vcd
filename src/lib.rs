@@ -1,7 +1,15 @@
-//! This crate reads and writes [VCD (Value Change Dump)][wp] files, a common format used with
-//! logic analyzers, HDL simulators, and other EDA tools.
+//! This crate reads and writes [VCD (Value Change Dump)][wp] files, a common
+//! format used with logic analyzers, HDL simulators, and other EDA tools.
 //!
 //! [wp]: https://en.wikipedia.org/wiki/Value_change_dump
+//! 
+//! It provides:
+//!  * A [`Parser`] wraps [`std::io::Read`] and provides the ability to parse a
+//!    VCD [`Header`] and [`Command`]s.
+//!  * A [`Writer`] that allows writing VCD to a [`std::io::Write`].
+//!  * Several structs and enums representing the elements of a VCD file that
+//!    can be used with the `Parser` or `Writer`, or individually by
+//!    implementing [`FromStr`][`std::str::FromStr`] and [`Display`].
 //!
 //! ## Example
 //!
@@ -10,7 +18,7 @@
 //! use std::io::ErrorKind::InvalidInput;
 //! use vcd::{ self, Value, TimescaleUnit, SimulationCommand };
 //!
-//! /// Write out a clocked signal to a VCD file
+//! /// Write out a clock and data signal to a VCD file
 //! fn write_clocked_vcd(shift_reg: u32, w: &mut io::Write) -> io::Result<()> {
 //!   let mut writer = vcd::Writer::new(w);
 //!
@@ -175,7 +183,7 @@ pub enum Command {
     /// A `r1.234 a` change to a real variable
     ChangeReal(IdCode, f64),
 
-    /// A `sSTART a` change to a (real?) variable
+    /// A `sSTART a` change to a string variable
     ChangeString(IdCode, String),
 
     /// A beginning of a simulation command. Unlike header commands, which are parsed atomically,
@@ -214,6 +222,9 @@ impl Display for SimulationCommand {
 }
 
 /// Structure containing the data from the header of a VCD file.
+/// 
+/// A `Header` can be parsed from VCD with [`Parser::parse_header`], or create an
+/// empty `Header` with [`Header::default`].
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct Header {

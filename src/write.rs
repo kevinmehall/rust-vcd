@@ -5,7 +5,35 @@ use crate::{
     TimescaleUnit, Value, Var, VarType,
 };
 
-/// Struct wrapping an `io::Write` with methods for writing VCD commands and data.
+/// Struct wrapping an [`std::io::Write`] with methods for writing VCD commands and data.
+/// 
+/// ## Example
+/// ```rust,no_run
+/// # use std::error::Error;
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// use std::{fs::File, io::BufWriter};
+/// use vcd::{Value, TimescaleUnit};
+/// 
+/// let mut writer = vcd::Writer::new(BufWriter::new(File::create("test.vcd")?));
+/// 
+/// writer.timescale(1, TimescaleUnit::US)?;
+/// writer.add_module("top")?;
+/// let clock = writer.add_wire(1, "clock")?;
+/// writer.upscope()?;
+/// writer.enddefinitions()?;
+/// 
+/// let mut t = 0;
+/// while t < 100 {
+///     writer.timestamp(t)?;
+///     writer.change_scalar(clock, Value::V0)?;
+///     t += 2;
+/// 
+///     writer.timestamp(t)?;
+///     writer.change_scalar(clock, Value::V1)?;
+///     t += 2;
+/// }
+/// # Ok(()) }
+/// ```
 pub struct Writer<W: io::Write> {
     writer: W,
     next_id_code: IdCode,
@@ -13,7 +41,7 @@ pub struct Writer<W: io::Write> {
 }
 
 impl<W: io::Write> Writer<W> {
-    /// Creates a Writer, wrapping an io::Write.
+    /// Creates a Writer wrapping an [`io::Write`].
     ///
     /// ```
     /// let mut buf = Vec::new();
@@ -27,17 +55,17 @@ impl<W: io::Write> Writer<W> {
         }
     }
 
-    /// get the wrapped [`io::Write`]
+    /// Get the wrapped [`io::Write`].
     pub fn writer(&mut self) -> &mut W {
         &mut self.writer
     }
 
-    /// flush the wrapped [`io::Write`]
+    /// Flush the wrapped [`io::Write`].
     pub fn flush(&mut self) -> io::Result<()> {
         self.writer.flush()
     }
 
-    /// Writes a complete header with the fields from a `Header` struct from the parser.
+    /// Writes a complete header with the fields from a [`Header`] struct from the parser.
     pub fn header(&mut self, h: &Header) -> io::Result<()> {
         if let Some(ref s) = h.date {
             self.date(s)?;
@@ -89,7 +117,7 @@ impl<W: io::Write> Writer<W> {
 
     /// Writes a `$scope` command for a module.
     ///
-    /// Convenience wrapper around `scope_def`.
+    /// Convenience wrapper around [`Writer::scope_def`].
     pub fn add_module(&mut self, identifier: &str) -> io::Result<()> {
         self.scope_def(ScopeType::Module, identifier)
     }
@@ -104,8 +132,8 @@ impl<W: io::Write> Writer<W> {
         writeln!(self.writer, "$upscope $end")
     }
 
-    /// Writes a `$scope` command, a series of `$var` commands, and an `$upscope` commands from
-    /// a `Scope` structure from the parser.
+    /// Writes a `$scope` command, a series of `$var` commands, and an
+    /// `$upscope` commands from a [`Scope`] structure from the parser.
     pub fn scope(&mut self, s: &Scope) -> io::Result<()> {
         self.scope_def(s.scope_type, &s.identifier[..])?;
         for i in &s.children {
@@ -150,7 +178,7 @@ impl<W: io::Write> Writer<W> {
 
     /// Writes a `$var` command with the next available ID, returning the assigned ID.
     ///
-    /// Convenience wrapper around `var_def`.
+    /// Convenience wrapper around [`Writer::var_def`].
     pub fn add_var(
         &mut self,
         var_type: VarType,
@@ -165,12 +193,12 @@ impl<W: io::Write> Writer<W> {
 
     /// Adds a `$var` for a wire with the next available ID, returning the assigned ID.
     ///
-    /// Convenience wrapper around `add_var`.
+    /// Convenience wrapper around [`Writer::add_var`].
     pub fn add_wire(&mut self, width: u32, reference: &str) -> io::Result<IdCode> {
         self.add_var(VarType::Wire, width, reference, None)
     }
 
-    /// Writes a `$var` command from a `Var` structure from the parser.
+    /// Writes a `$var` command from a [`Var`] structure from the parser.
     pub fn var(&mut self, v: &Var) -> io::Result<()> {
         self.var_def(v.var_type, v.size, v.code, &v.reference[..], v.index)
     }
@@ -224,7 +252,7 @@ impl<W: io::Write> Writer<W> {
         writeln!(self.writer, "$end")
     }
 
-    /// Writes a command from a `Command` enum as parsed by the parser.
+    /// Writes a command from a [`Command`] enum as parsed by the parser.
     pub fn command(&mut self, c: &Command) -> io::Result<()> {
         use Command::*;
         match *c {

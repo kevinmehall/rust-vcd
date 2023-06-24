@@ -142,6 +142,7 @@ pub struct Scope {
 }
 
 impl Scope {
+    /// Create a `Scope`.
     pub fn new(scope_type: ScopeType, identifier: String) -> Self {
         Self { scope_type, identifier, children: Vec::new() }
     }
@@ -169,7 +170,14 @@ impl Default for Scope {
     }
 }
 
-/// Index of a VCD variable reference, either a bit select index `[i]` or a range index `[msb:lsb]`
+/// Index of a VCD variable reference: either a bit select index `[i]` or a range index `[msb:lsb]`
+/// 
+/// `ReferenceIndex` can be parsed with [`FromStr`]:
+/// 
+/// ```
+/// # use vcd::ReferenceIndex;
+/// assert_eq!("[7:0]".parse(), Ok(ReferenceIndex::Range(7, 0)));
+/// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ReferenceIndex {
     BitSelect(i32),
@@ -237,6 +245,7 @@ pub struct Var {
 }
 
 impl Var {
+    /// Create a `Var`.
     pub fn new(
         var_type: VarType,
         size: u32,
@@ -248,7 +257,7 @@ impl Var {
     }
 }
 
-/// An item in a scope -- either a child scope or a variable.
+/// An item in a scope
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum ScopeItem {

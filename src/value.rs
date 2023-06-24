@@ -5,10 +5,14 @@ use std::str::FromStr;
 /// A four-valued logic scalar value.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Value {
-    /// Logic low (prefixed with `V` to make a valid Rust identifier)
+    /// Logic low
+    ///
+    /// (prefixed with `V` to make a valid Rust identifier)
     V0,
 
-    /// Logic high (prefixed with `V` to make a valid Rust identifier)
+    /// Logic high
+    ///
+    /// (prefixed with `V` to make a valid Rust identifier)
     V1,
 
     /// An uninitialized or unknown value
