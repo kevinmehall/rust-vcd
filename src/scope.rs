@@ -172,8 +172,8 @@ impl Default for Scope {
 /// Index of a VCD variable reference, either a bit select index `[i]` or a range index `[msb:lsb]`
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ReferenceIndex {
-    BitSelect(u32),
-    Range(u32, u32),
+    BitSelect(i32),
+    Range(i32, i32),
 }
 
 crate::unit_error_struct!(InvalidReferenceIndex, "invalid reference index");
@@ -185,12 +185,11 @@ impl FromStr for ReferenceIndex {
         let s = s.strip_suffix("]").ok_or(InvalidReferenceIndex)?;
         match s.split_once(':') {
             Some((msb_str, lsb_str)) => {
-                let msb: u32 = msb_str
+                let msb: i32 = msb_str
                     .trim()
                     .parse()
                     .map_err(|_| InvalidReferenceIndex)?;
-                let lsb: u32 = lsb_str
-                    .trim_start_matches(':')
+                let lsb: i32 = lsb_str
                     .trim()
                     .parse()
                     .map_err(|_| InvalidReferenceIndex)?;
@@ -211,11 +210,19 @@ impl Display for ReferenceIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use ReferenceIndex::*;
         match self {
-            BitSelect(idx) => write!(f, "[{}]", idx)?,
-            Range(msb, lsb) => write!(f, "[{}:{}]", msb, lsb)?,
-        };
-        Ok(())
+            BitSelect(idx) => write!(f, "[{}]", idx),
+            Range(msb, lsb) => write!(f, "[{}:{}]", msb, lsb),
+        }
     }
+}
+
+#[test]
+fn test_parse_reference_index() {
+    assert_eq!("[0]".parse(), Ok(ReferenceIndex::BitSelect(0)));
+    assert_eq!("[ 1 ]".parse(), Ok(ReferenceIndex::BitSelect(1)));
+    assert_eq!("[7:0]".parse(), Ok(ReferenceIndex::Range(7, 0)));
+    assert_eq!("[12:-4]".parse(), Ok(ReferenceIndex::Range(12, -4)));
+    assert_eq!("[ 0 : 8 ]".parse(), Ok(ReferenceIndex::Range(0, 8)));
 }
 
 /// Information on a VCD variable as represented by a `$var` command.
