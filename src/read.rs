@@ -137,10 +137,10 @@ impl<R: io::Read> Parser<R> {
         loop {
             let b = self.read_byte()?;
             if whitespace_byte(b) {
-                if r.len() > 0 {
-                    break;
-                } else {
+                if r.is_empty() {
                     continue;
+                } else {
+                    break;
                 }
             }
             r.push(b);
@@ -231,7 +231,7 @@ impl<R: io::Read> Parser<R> {
                 let mut buf = [0; 32];
                 let mut tok = self.read_token_str(&mut buf)?;
                 let index = {
-                    if tok.starts_with("[") {
+                    if tok.starts_with('[') {
                         let r = Some(tok.parse::<ReferenceIndex>().map_err(|e| self.error(e))?);
                         tok = self.read_token_str(&mut buf)?;
                         r
@@ -288,10 +288,10 @@ impl<R: io::Read> Parser<R> {
         loop {
             let b = self.read_byte()?;
             if whitespace_byte(b) {
-                if val.len() > 0 {
-                    break;
-                } else {
+                if val.is_empty() {
                     continue;
+                } else {
+                    break;
                 }
             }
             val.push(Value::parse(b).map_err(|e| self.error(e))?);

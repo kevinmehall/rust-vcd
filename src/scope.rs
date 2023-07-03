@@ -189,8 +189,8 @@ crate::unit_error_struct!(InvalidReferenceIndex, "invalid reference index");
 impl FromStr for ReferenceIndex {
     type Err = InvalidReferenceIndex;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.strip_prefix("[").ok_or(InvalidReferenceIndex)?;
-        let s = s.strip_suffix("]").ok_or(InvalidReferenceIndex)?;
+        let s = s.strip_prefix('[').ok_or(InvalidReferenceIndex)?;
+        let s = s.strip_suffix(']').ok_or(InvalidReferenceIndex)?;
         match s.split_once(':') {
             Some((msb_str, lsb_str)) => {
                 let msb: i32 = msb_str

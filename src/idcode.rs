@@ -37,7 +37,7 @@ impl IdCode {
         }
         let mut result = 0u64;
         for &i in v.iter().rev() {
-            if i < ID_CHAR_MIN || i > ID_CHAR_MAX {
+            if !(ID_CHAR_MIN..=ID_CHAR_MAX).contains(&i) {
                 return Err(InvalidIdCode::InvalidChars);
             }
             let c = ((i - ID_CHAR_MIN) as u64) + 1;

@@ -83,6 +83,7 @@ pub struct Vector(Vec<Value>);
 
 impl Vector {
     /// Returns the number of bits in the vector.
+    #[allow(clippy::len_without_is_empty)] // empty vector is not useful
     pub fn len(&self) -> usize {
         self.0.len()
     }
