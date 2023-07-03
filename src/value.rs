@@ -93,6 +93,11 @@ impl Vector {
         VectorIter(self.0.iter())
     }
 
+    /// Get a bit of the vector by index, or `None` if out-of-bounds.
+    pub fn get(&self, i: usize) -> Option<Value> {
+        self.0.get(i).cloned()
+    }
+
     /// Returns a `Vector` of the specified `width` filled with the value `v`
     pub fn filled(v: Value, width: usize) -> Vector {
         Vector(std::iter::repeat(v).take(width).collect())
@@ -182,4 +187,14 @@ fn test_vector_parse() {
 #[test]
 fn test_vector_display() {
     assert_eq!(format!("{}", Vector::from_iter([Value::V0, Value::V1, Value::X, Value::Z])), "01xz");
+}
+
+#[test]
+fn test_vector_iter() {
+    let vector = Vector::from_iter([Value::V0, Value::V1, Value::X]);
+    assert_eq!(vector.get(0), Some(Value::V0));
+    assert_eq!(vector.get(2), Some(Value::X));
+    assert_eq!(vector.get(3), None);
+
+    assert_eq!(vector.iter().collect::<Vec<_>>(), vec![Value::V0, Value::V1, Value::X]);
 }
