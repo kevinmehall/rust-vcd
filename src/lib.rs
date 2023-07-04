@@ -4,7 +4,7 @@
 //! [wp]: https://en.wikipedia.org/wiki/Value_change_dump
 //! 
 //! It provides:
-//!  * A [`Parser`] wraps [`std::io::Read`] and provides the ability to parse a
+//!  * A [`Parser`] wraps [`std::io::BufRead`] and provides the ability to parse a
 //!    VCD [`Header`] and [`Command`]s.
 //!  * A [`Writer`] that allows writing VCD to a [`std::io::Write`].
 //!  * Several structs and enums representing the elements of a VCD file that
@@ -19,7 +19,7 @@
 //! use vcd::{ self, Value, TimescaleUnit, SimulationCommand };
 //!
 //! /// Write out a clock and data signal to a VCD file
-//! fn write_clocked_vcd(shift_reg: u32, w: &mut io::Write) -> io::Result<()> {
+//! fn write_clocked_vcd(shift_reg: u32, w: &mut dyn io::Write) -> io::Result<()> {
 //!   let mut writer = vcd::Writer::new(w);
 //!
 //!   // Write the header
@@ -52,7 +52,7 @@
 //! }
 //!
 //! /// Parse a VCD file containing a clocked signal and decode the signal
-//! fn read_clocked_vcd(r: &mut io::Read) -> io::Result<u32> {
+//! fn read_clocked_vcd(r: &mut dyn io::BufRead) -> io::Result<u32> {
 //!    let mut parser = vcd::Parser::new(r);
 //!
 //!    // Parse the header and find the wires

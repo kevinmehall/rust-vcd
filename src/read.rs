@@ -14,7 +14,7 @@ fn whitespace_byte(b: u8) -> bool {
 
 /// VCD parser.
 ///
-/// Wraps [`std::io::Read`] and acts as an iterator of [`Command`]s.
+/// Wraps [`std::io::BufRead`] and acts as an iterator of [`Command`]s.
 ///
 /// ### Example
 ///
@@ -55,15 +55,15 @@ fn whitespace_byte(b: u8) -> bool {
 /// assert_eq!(vcd_err.unwrap().line(), 1);
 /// assert!(matches!(vcd_err.unwrap().kind(), ParseErrorKind::UnexpectedCharacter));
 /// ```
-pub struct Parser<R: io::Read> {
+pub struct Parser<R> {
     reader: R,
     line: u64,
     end_of_line: bool,
     simulation_command: Option<SimulationCommand>,
 }
 
-impl<R: io::Read> Parser<R> {
-    /// Creates a parser wrapping an [`io::Read`].
+impl<R: io::BufRead> Parser<R> {
+    /// Creates a parser wrapping an [`io::BufRead`].
     ///
     /// ### From a string
     /// ```
@@ -89,7 +89,7 @@ impl<R: io::Read> Parser<R> {
         }
     }
 
-    /// Get the wrapped [`io::Read`].
+    /// Get the wrapped [`io::BufRead`].
     ///
     /// Moving the cursor position may confuse the parser.
     pub fn reader(&mut self) -> &mut R {
@@ -431,7 +431,7 @@ impl<R: io::Read> Parser<R> {
     }
 }
 
-impl<P: io::Read> Iterator for Parser<P> {
+impl<P: io::BufRead> Iterator for Parser<P> {
     type Item = Result<Command, io::Error>;
     fn next(&mut self) -> Option<Result<Command, io::Error>> {
         while let Some(b) = self.read_byte_or_eof().transpose() {

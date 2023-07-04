@@ -10,7 +10,7 @@ fn main() {
 
 
 pub fn run() -> Result<(), Box<dyn Error>> {
-    let mut stdin = io::stdin();
+    let mut stdin = io::stdin().lock();
     let mut stdout = io::stdout();
 
     let mut reader = vcd::Parser::new(&mut stdin);
