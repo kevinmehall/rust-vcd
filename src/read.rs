@@ -13,23 +13,21 @@ fn whitespace_byte(b: u8) -> bool {
 }
 
 /// VCD parser.
-/// 
+///
 /// Wraps [`std::io::Read`] and acts as an iterator of [`Command`]s.
-/// 
+///
 /// ### Example
-/// 
+///
 /// ```rust,no_run
 /// # use std::error::Error;
 /// # fn main() -> Result<(), Box<dyn Error>> {
 /// use std::{io::BufReader, fs::File};
 /// use vcd::{Parser, Command};
-/// 
+///
 /// let mut reader = Parser::new(BufReader::new(File::open("test.vcd")?));
 /// let header = reader.parse_header()?;
-/// 
-/// while let Some(command_result) = reader.next() {
-///     let command = command_result?;
-/// 
+///
+/// while let Some(command) = reader.next().transpose()? {
 ///     match command {
 ///         Command::Timestamp(t) => println!("Time is {t}"),
 ///         Command::ChangeScalar(i, v) => println!("{i} set to {v}"),
@@ -41,6 +39,22 @@ fn whitespace_byte(b: u8) -> bool {
 /// }
 /// # Ok(()) }
 /// ```
+///
+/// ### Error handling
+///
+/// The `Parser` methods return an [`std::io::Error`]. To extract a VCD-specific
+/// error type and line number for [`std::io::ErrorKind::InvalidData`], the
+/// error can be downcast to [`ParseError`]:
+///
+/// ```rust
+/// use vcd::{Parser, ParseError, ParseErrorKind};
+/// let text = "AAAAA";
+/// let res = Parser::new(text.as_bytes()).parse_header();
+/// let err: std::io::Error = res.unwrap_err();
+/// let vcd_err: Option<&ParseError> = err.get_ref().and_then(|e| e.downcast_ref());
+/// assert_eq!(vcd_err.unwrap().line(), 1);
+/// assert!(matches!(vcd_err.unwrap().kind(), ParseErrorKind::UnexpectedCharacter));
+/// ```
 pub struct Parser<R: io::Read> {
     reader: R,
     line: u64,
@@ -51,9 +65,20 @@ pub struct Parser<R: io::Read> {
 impl<R: io::Read> Parser<R> {
     /// Creates a parser wrapping an [`io::Read`].
     ///
+    /// ### From a string
     /// ```
-    /// # let buf = b"...";
-    /// let mut vcd = vcd::Parser::new(&buf[..]);
+    /// let s = "...";
+    /// let mut vcd = vcd::Parser::new(s.as_bytes());
+    /// ```
+    ///
+    /// ### From a file
+    /// ```rust,no_run
+    /// use std::{fs::File, io::BufReader};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let name = "foo.vcd";
+    /// let mut vcd = vcd::Parser::new(BufReader::new(File::open(name)?));
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn new(reader: R) -> Parser<R> {
         Parser {
@@ -65,14 +90,14 @@ impl<R: io::Read> Parser<R> {
     }
 
     /// Get the wrapped [`io::Read`].
-    /// 
+    ///
     /// Moving the cursor position may confuse the parser.
     pub fn reader(&mut self) -> &mut R {
         &mut self.reader
     }
 
     /// Get the current line number.
-    /// 
+    ///
     /// The line number is 1-indexed (first line is numbered 1).
     pub fn line(&self) -> u64 {
         self.line

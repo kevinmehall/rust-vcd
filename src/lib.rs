@@ -68,8 +68,8 @@
 //!    let mut clock_val = Value::X;
 //!
 //!    for command_result in parser {
-//!      use vcd::Command::*;
 //!      let command = command_result?;
+//!      use vcd::Command::*;
 //!      match command {
 //!        ChangeScalar(i, v) if i == clock => {
 //!          if clock_val == Value::V1 && v == Value::V0 { // falling edge on clock
