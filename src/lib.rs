@@ -97,8 +97,8 @@
 
 use std::fmt::{self, Display};
 
-mod read;
-pub use read::{ Parser, ParseError, ParseErrorKind };
+mod parser;
+pub use parser::{ Parser, ParseError, ParseErrorKind };
 
 mod write;
 pub use write::Writer;
