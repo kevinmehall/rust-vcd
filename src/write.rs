@@ -73,9 +73,6 @@ impl<W: io::Write> Writer<W> {
         if let Some(ref s) = h.version {
             self.version(s)?;
         }
-        if let Some(ref s) = h.comment {
-            self.comment(s)?;
-        }
         if let Some((v, u)) = h.timescale {
             self.timescale(v, u)?;
         }

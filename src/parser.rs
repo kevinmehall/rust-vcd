@@ -392,7 +392,7 @@ impl<R: io::BufRead> Parser<R> {
             match self.next() {
                 Some(Ok(Enddefinitions)) => break,
                 Some(Ok(Comment(s))) => {
-                    header.comment = Some(s);
+                    header.items.push(ScopeItem::Comment(s));
                 }
                 Some(Ok(Date(s))) => {
                     header.date = Some(s);
@@ -619,12 +619,13 @@ mod test {
         let mut b = Parser::new(&sample[..]);
 
         let header = b.parse_header().unwrap();
-        assert_eq!(header.comment, Some("Any comment text.".to_string()));
         assert_eq!(header.date, Some("Date text.".to_string()));
         assert_eq!(header.version, Some("VCD generator text.".to_string()));
         assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
 
-        let scope = match &header.items[0] {
+        assert_eq!(header.items[0], ScopeItem::Comment("Any comment text.".to_string()));
+
+        let scope = match &header.items[1] {
             ScopeItem::Scope(sc) => sc,
             x => panic!("Expected Scope, found {:?}", x),
         };
@@ -724,7 +725,6 @@ b00000000000000000000000000000000 t
         let mut b = Parser::new(&sample[..]);
 
         let header = b.parse_header().unwrap();
-        assert_eq!(header.comment, None);
         assert_eq!(header.date, None);
         assert_eq!(header.version, None);
         assert_eq!(header.timescale, None);
@@ -819,10 +819,11 @@ b1 n0
         let mut b = Parser::new(&sample[..]);
 
         let header = b.parse_header().unwrap();
-        assert_eq!(header.comment, None);
         assert_eq!(header.date, None);
         assert_eq!(header.version, None);
         assert_eq!(header.timescale, None);
+
+        assert_eq!(header.items.len(), 3);
 
         assert_eq!(
             header.items[0],
@@ -971,12 +972,14 @@ b1 n0
         let mut b = Parser::new(&sample[..]);
 
         let header = b.parse_header().unwrap();
-        assert_eq!(header.comment, Some("Any comment text.".to_string()));
+        assert_eq!(&header.items[0], &ScopeItem::Comment("Any comment text.".to_string()));
         assert_eq!(header.date, Some("Date text.".to_string()));
         assert_eq!(header.version, Some("VCD generator text.".to_string()));
         assert_eq!(header.timescale, Some((100, TimescaleUnit::NS)));
 
-        let scope = match &header.items[0] {
+        assert_eq!(header.items.len(), 2);
+
+        let scope = match &header.items[1] {
             ScopeItem::Scope(sc) => sc,
             x => panic!("Expected Scope, found {:?}", x),
         };

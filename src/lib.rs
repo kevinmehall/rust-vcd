@@ -230,9 +230,6 @@ impl Display for SimulationCommand {
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct Header {
-    /// `$comment` text
-    pub comment: Option<String>,
-
     /// `$date` text
     pub date: Option<String>,
 
@@ -242,7 +239,7 @@ pub struct Header {
     /// Parsed `$timescale` indicating the time unit used in the file
     pub timescale: Option<(u32, TimescaleUnit)>,
 
-    /// Top-level variables and scopes
+    /// Top-level variables, scopes, and comments
     pub items: Vec<ScopeItem>,
 }
 
