@@ -145,18 +145,18 @@ pub struct Scope {
     pub identifier: String,
 
     /// Items within the scope.
-    pub children: Vec<ScopeItem>,
+    pub items: Vec<ScopeItem>,
 }
 
 impl Scope {
     /// Create a `Scope`.
     pub fn new(scope_type: ScopeType, identifier: String) -> Self {
-        Self { scope_type, identifier, children: Vec::new() }
+        Self { scope_type, identifier, items: Vec::new() }
     }
 
     /// Looks up a variable by reference.
     pub fn find_var<'a>(&'a self, reference: &str) -> Option<&'a Var> {
-        for c in &self.children {
+        for c in &self.items {
             if let ScopeItem::Var(v) = c {
                 if v.reference == reference {
                     return Some(v);
@@ -172,7 +172,7 @@ impl Default for Scope {
         Scope {
             scope_type: ScopeType::Module,
             identifier: "".to_string(),
-            children: Vec::new(),
+            items: Vec::new(),
         }
     }
 }

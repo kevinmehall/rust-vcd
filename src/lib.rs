@@ -270,7 +270,7 @@ impl Header {
             S: std::borrow::Borrow<str>,
         {
             'deeper: while !path.is_empty() {
-                for child in &scope.children {
+                for child in &scope.items {
                     match child {
                         ScopeItem::Scope(ref new_scope)
                             if new_scope.identifier == path[0].borrow() =>

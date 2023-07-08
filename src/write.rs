@@ -133,7 +133,7 @@ impl<W: io::Write> Writer<W> {
     /// `$upscope` commands from a [`Scope`] structure from the parser.
     pub fn scope(&mut self, s: &Scope) -> io::Result<()> {
         self.scope_def(s.scope_type, &s.identifier[..])?;
-        for i in &s.children {
+        for i in &s.items {
             match *i {
                 ScopeItem::Var(ref v) => self.var(v)?,
                 ScopeItem::Scope(ref s) => self.scope(s)?,

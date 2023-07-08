@@ -377,7 +377,7 @@ impl<R: io::BufRead> Parser<R> {
         Ok(Scope {
             scope_type,
             identifier: reference,
-            children,
+            items: children,
         })
     }
 
@@ -633,12 +633,12 @@ mod test {
         assert_eq!(&scope.identifier[..], "logic");
         assert_eq!(scope.scope_type, ScopeType::Module);
 
-        if let ScopeItem::Var(ref v) = scope.children[0] {
+        if let ScopeItem::Var(ref v) = scope.items[0] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "data");
             assert_eq!(v.size, 8);
         } else {
-            panic!("Expected Var, found {:?}", scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.items[0]);
         }
 
         let expected = &[
@@ -691,22 +691,22 @@ $enddefinitions $end
         assert_eq!(&scope.identifier[..], "top");
         assert_eq!(scope.scope_type, ScopeType::Module);
 
-        if let ScopeItem::Var(ref v) = scope.children[0] {
+        if let ScopeItem::Var(ref v) = scope.items[0] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "i_vld");
             assert_eq!(v.index, Some(ReferenceIndex::BitSelect(0)));
             assert_eq!(v.size, 1);
         } else {
-            panic!("Expected Var, found {:?}", scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.items[0]);
         }
 
-        if let ScopeItem::Var(ref v) = scope.children[1] {
+        if let ScopeItem::Var(ref v) = scope.items[1] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "i_data");
             assert_eq!(v.index, Some(ReferenceIndex::Range(9, 0)));
             assert_eq!(v.size, 10);
         } else {
-            panic!("Expected Var, found {:?}", scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.items[0]);
         }
     }
 
@@ -737,12 +737,12 @@ b00000000000000000000000000000000 t
         assert_eq!(&scope.identifier[..], "logic");
         assert_eq!(scope.scope_type, ScopeType::Module);
 
-        if let ScopeItem::Var(ref v) = scope.children[0] {
+        if let ScopeItem::Var(ref v) = scope.items[0] {
             assert_eq!(v.var_type, VarType::Integer);
             assert_eq!(&v.reference[..], "smt_step");
             assert_eq!(v.size, 32);
         } else {
-            panic!("Expected Var, found {:?}", scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.items[0]);
         }
 
         let expected = &[
@@ -854,12 +854,12 @@ b1 n0
         assert_eq!(&scope.identifier[..], "queue");
         assert_eq!(scope.scope_type, ScopeType::Module);
 
-        if let ScopeItem::Var(ref v) = scope.children[0] {
+        if let ScopeItem::Var(ref v) = scope.items[0] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "buffer<0>");
             assert_eq!(v.size, 8);
         } else {
-            panic!("Expected Var, found {:?}", scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.items[0]);
         }
 
         let expected = &[
@@ -987,22 +987,22 @@ b1 n0
         assert_eq!(&scope.identifier[..], "logic");
         assert_eq!(scope.scope_type, ScopeType::Module);
 
-        if let ScopeItem::Var(ref v) = scope.children[0] {
+        if let ScopeItem::Var(ref v) = scope.items[0] {
             assert_eq!(v.var_type, VarType::Wire);
             assert_eq!(&v.reference[..], "data");
             assert_eq!(v.size, 8);
         } else {
-            panic!("Expected Var, found {:?}", scope.children[0]);
+            panic!("Expected Var, found {:?}", scope.items[0]);
         }
 
-        if let ScopeItem::Comment(_) = scope.children[3] {
+        if let ScopeItem::Comment(_) = scope.items[3] {
         } else {
-            panic!("Expected Comment, found {:?}", scope.children[3]);
+            panic!("Expected Comment, found {:?}", scope.items[3]);
         }
 
-        if let ScopeItem::Comment(_) = scope.children[8] {
+        if let ScopeItem::Comment(_) = scope.items[8] {
         } else {
-            panic!("Expected Comment, found {:?}", scope.children[8]);
+            panic!("Expected Comment, found {:?}", scope.items[8]);
         }
 
 
