@@ -96,7 +96,7 @@
 //! ```
 #![warn(missing_docs)]
 
-use std::fmt::{self, Display};
+use std::{fmt::{self, Display}, borrow::Borrow};
 
 mod parser;
 pub use parser::{ Parser, ParseError, ParseErrorKind };
@@ -243,6 +243,21 @@ pub struct Header {
     pub items: Vec<ScopeItem>,
 }
 
+fn find_parent_scope<'a>(
+    mut items: &'a [ScopeItem],
+    path: &[impl Borrow<str>]
+) -> Option<&'a [ScopeItem]> {
+    for name in path {
+        items = items.iter().find_map(|item| match item {
+            ScopeItem::Scope(scope) if scope.identifier == name.borrow() => {
+                Some(&scope.items[..])
+            }
+            _ => None,
+        })?;
+    }
+    Some(items)
+}
+
 impl Header {
     /// Find the scope object at a specified path.
     ///
@@ -265,42 +280,13 @@ impl Header {
     where
         S: std::borrow::Borrow<str>,
     {
-        fn find_nested_scope<'a, S>(mut scope: &'a Scope, mut path: &[S]) -> Option<&'a Scope>
-        where
-            S: std::borrow::Borrow<str>,
-        {
-            'deeper: while !path.is_empty() {
-                for child in &scope.items {
-                    match child {
-                        ScopeItem::Scope(ref new_scope)
-                            if new_scope.identifier == path[0].borrow() =>
-                        {
-                            scope = new_scope;
-                            path = &path[1..];
-                            continue 'deeper;
-                        }
-                        _ => (),
-                    }
-                }
-                return None;
-            }
-            Some(scope)
-        }
+        let (name, parent_path) = path.split_last()?;
+        let parent = find_parent_scope(&self.items, parent_path)?;
 
-        if path.is_empty() {
-            return None;
-        }
-
-        let scope = self.items.iter().find(|item| match item {
-            ScopeItem::Scope(scope) => scope.identifier == path[0].borrow(),
-            _ => false,
-        });
-
-        if let Some(ScopeItem::Scope(scope)) = scope {
-            find_nested_scope(scope, &path[1..])
-        } else {
-            None
-        }
+        parent.iter().find_map(|item| match item {
+            ScopeItem::Scope(scope) if scope.identifier == name.borrow() => Some(scope),
+            _ => None,
+        })
     }
 
     /// Find the variable object at a specified path.
@@ -324,7 +310,12 @@ impl Header {
     where
         S: std::borrow::Borrow<str>,
     {
-        let scope = self.find_scope(&path[..path.len() - 1])?;
-        scope.find_var(path[path.len() - 1].borrow())
+        let (name, parent_path) = path.split_last()?;
+        let parent = find_parent_scope(&self.items, parent_path)?;
+
+        parent.iter().find_map(|item| match item {
+            ScopeItem::Var(v) if v.reference == name.borrow() => Some(v),
+            _ => None,
+        })
     }
 }

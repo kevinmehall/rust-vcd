@@ -641,6 +641,9 @@ mod test {
             panic!("Expected Var, found {:?}", scope.items[0]);
         }
 
+        assert_eq!(header.find_scope(&["logic"]).unwrap(), scope);
+        assert_eq!(&header.find_var(&["logic", "data"]).unwrap().reference, "data");
+
         let expected = &[
             Begin(Dumpvars),
             ChangeVector(2u32.into(), [X, X, X, X, X, X, X, X].into()),
@@ -861,6 +864,9 @@ b1 n0
         } else {
             panic!("Expected Var, found {:?}", scope.items[0]);
         }
+
+        assert_eq!(&header.find_var(&["smt_clock"]).unwrap().reference, "smt_clock");
+        assert_eq!(&header.find_var(&["queue", "o_data"]).unwrap().reference, "o_data");
 
         let expected = &[
             Timestamp(0),
