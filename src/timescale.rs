@@ -4,11 +4,22 @@ use std::str::FromStr;
 /// A unit of time for the `$timescale` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TimescaleUnit {
+    /// Second
     S,
+
+    /// Millisecond (10^-3)
     MS,
+
+    /// Microsecond (10^-6)
     US,
+
+    /// Nanosecond (10^-9)
     NS,
+
+    /// Picosecond (10^-12)
     PS,
+
+    /// Femtosecond (10^-15)
     FS,
 }
 

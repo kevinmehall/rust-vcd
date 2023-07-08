@@ -94,6 +94,7 @@
 //! let value = read_clocked_vcd(&mut &buf[..]).expect("Failed to read");
 //! assert_eq!(value, data);
 //! ```
+#![warn(missing_docs)]
 
 use std::fmt::{self, Display};
 
@@ -198,6 +199,7 @@ pub enum Command {
 /// A simulation command type, used in `Command::Begin` and `Command::End`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[non_exhaustive]
+#[allow(missing_docs)]
 pub enum SimulationCommand {
     Dumpall,
     Dumpoff,
@@ -228,10 +230,19 @@ impl Display for SimulationCommand {
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct Header {
+    /// `$comment` text
     pub comment: Option<String>,
+
+    /// `$date` text
     pub date: Option<String>,
+
+    /// `$version` text
     pub version: Option<String>,
+
+    /// Parsed `$timescale` indicating the time unit used in the file
     pub timescale: Option<(u32, TimescaleUnit)>,
+
+    /// Top-level variables and scopes
     pub items: Vec<ScopeItem>,
 }
 

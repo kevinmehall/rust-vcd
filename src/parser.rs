@@ -383,8 +383,8 @@ impl<R: io::BufRead> Parser<R> {
 
     /// Parses the header of a VCD file into a `Header` struct.
     ///
-    /// After returning, the stream has been read just past the `$enddefinitions` command and can
-    /// be iterated to obtain the data.
+    /// After returning, the stream has been read just past the
+    /// `$enddefinitions` command and can be iterated to obtain the data.
     pub fn parse_header(&mut self) -> Result<Header, io::Error> {
         use Command::*;
         let mut header: Header = Default::default();
@@ -476,6 +476,7 @@ impl ParseError {
 /// Errors that can be encountered while parsing.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
+#[allow(missing_docs)]
 pub enum ParseErrorKind {
     InvalidUtf8,
     UnexpectedCharacter,

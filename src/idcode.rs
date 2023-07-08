@@ -5,8 +5,11 @@ use std::str::FromStr;
 /// Parse error for invalid ID code.
 #[derive(Debug, Clone)]
 pub enum InvalidIdCode {
+    /// ID is empty
     Empty,
+    /// ID contains invalid characters
     InvalidChars,
+    /// ID is too long
     TooLong,
 }
 

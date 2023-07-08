@@ -6,6 +6,7 @@ use crate::IdCode;
 /// A type of scope, as used in the `$scope` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[non_exhaustive]
+#[allow(missing_docs)]
 pub enum ScopeType {
     Module,
     Task,
@@ -51,6 +52,7 @@ impl Display for ScopeType {
 /// A type of variable, as used in the `$var` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[non_exhaustive]
+#[allow(missing_docs)]
 pub enum VarType {
     Event,
     Integer,
@@ -136,8 +138,13 @@ impl Display for VarType {
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct Scope {
+    /// Type of scope.
     pub scope_type: ScopeType,
+
+    /// Name of the scope.
     pub identifier: String,
+
+    /// Items within the scope.
     pub children: Vec<ScopeItem>,
 }
 
@@ -171,16 +178,19 @@ impl Default for Scope {
 }
 
 /// Index of a VCD variable reference: either a bit select index `[i]` or a range index `[msb:lsb]`
-/// 
+///
 /// `ReferenceIndex` can be parsed with [`FromStr`]:
-/// 
+///
 /// ```
 /// # use vcd::ReferenceIndex;
 /// assert_eq!("[7:0]".parse(), Ok(ReferenceIndex::Range(7, 0)));
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ReferenceIndex {
+    /// Single bit (e.g `[0]`)
     BitSelect(i32),
+
+    /// Range of bits (e.g. `[7:0]`)
     Range(i32, i32),
 }
 
@@ -237,10 +247,22 @@ fn test_parse_reference_index() {
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct Var {
+    /// Type of variable.
     pub var_type: VarType,
+
+    /// Width in bits.
     pub size: u32,
+
+    /// Internal code used in value changes to link them back to this variable.
+    ///
+    /// Multiple variables can have the same `code` if they always have the same
+    /// value.
     pub code: IdCode,
+
+    /// Name of the variable.
     pub reference: String,
+
+    /// Optional bit index or range associated with the `reference`.
     pub index: Option<ReferenceIndex>,
 }
 
@@ -261,7 +283,12 @@ impl Var {
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum ScopeItem {
+    /// `$scope` - Child scope
     Scope(Scope),
+
+    /// `$var` - Variable
     Var(Var),
+
+    /// `$comment` - Comment
     Comment(String),
 }
