@@ -1,6 +1,6 @@
 [package]
 name = "vcd"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Kevin Mehall <km@kevinmehall.net>"]
 description = "Read and write VCD (Value Change Dump) files"
 license = "MIT"
@@ -9,6 +9,3 @@ repository = "https://github.com/kevinmehall/rust-vcd"
 categories = ["parser-implementations", "encoding"]
 readme = "README.md"
 edition = "2018"
-
-[badges]
-travis-ci = { repository = "kevinmehall/rust-vcd" }
