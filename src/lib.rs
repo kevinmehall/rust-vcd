@@ -146,6 +146,7 @@ pub(crate) use unit_error_struct;
 
 /// An element in a VCD file.
 #[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum Command {
     /// A `$comment` command
@@ -198,6 +199,7 @@ pub enum Command {
 
 /// A simulation command type, used in `Command::Begin` and `Command::End`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum SimulationCommand {
@@ -228,6 +230,7 @@ impl Display for SimulationCommand {
 /// A `Header` can be parsed from VCD with [`Parser::parse_header`], or create an
 /// empty `Header` with [`Header::default`].
 #[derive(Debug, Default)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub struct Header {
     /// `$date` text

@@ -4,15 +4,22 @@ use std::str::FromStr;
 
 /// A four-valued logic scalar value.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(tag = "type")
+)]
 pub enum Value {
     /// Logic low
     ///
     /// (prefixed with `V` to make a valid Rust identifier)
+    #[cfg_attr(feature = "serde", serde(rename = "0"))]
     V0,
 
     /// Logic high
     ///
     /// (prefixed with `V` to make a valid Rust identifier)
+    #[cfg_attr(feature = "serde", serde(rename = "1"))]
     V1,
 
     /// An uninitialized or unknown value
@@ -79,6 +86,7 @@ impl Display for Value {
 /// This currently wraps a `Vec<Value>` but could be implemented with
 /// a bitmap in the future.
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Vector(Vec<Value>);
 
 impl Vector {

@@ -9,3 +9,6 @@ repository = "https://github.com/kevinmehall/rust-vcd"
 categories = ["parser-implementations", "encoding"]
 readme = "README.md"
 edition = "2018"
+
+[dependencies]
+serde = { version = "^1.0", optional = true, features = ["derive"] }
