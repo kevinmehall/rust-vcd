@@ -292,3 +292,14 @@ pub enum ScopeItem {
     /// `$comment` - Comment
     Comment(String),
 }
+
+impl ScopeItem {
+    /// Returns the number of variables in this scope item.
+    pub fn num_vars(&self) -> usize {
+        match self {
+            ScopeItem::Scope(s) => s.items.iter().map(ScopeItem::num_vars).sum(),
+            ScopeItem::Var(_) => 1,
+            ScopeItem::Comment(_) => 0,
+        }
+    }
+}
