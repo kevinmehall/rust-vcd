@@ -5,6 +5,7 @@ use crate::IdCode;
 
 /// A type of scope, as used in the `$scope` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum ScopeType {
@@ -51,6 +52,7 @@ impl Display for ScopeType {
 
 /// A type of variable, as used in the `$var` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum VarType {
@@ -136,6 +138,7 @@ impl Display for VarType {
 
 /// Information on a VCD scope as represented by a `$scope` command and its children.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub struct Scope {
     /// Type of scope.
@@ -186,6 +189,7 @@ impl Default for Scope {
 /// assert_eq!("[7:0]".parse(), Ok(ReferenceIndex::Range(7, 0)));
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ReferenceIndex {
     /// Single bit (e.g `[0]`)
     BitSelect(i32),
@@ -245,6 +249,7 @@ fn test_parse_reference_index() {
 
 /// Information on a VCD variable as represented by a `$var` command.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub struct Var {
     /// Type of variable.
@@ -281,6 +286,7 @@ impl Var {
 
 /// An item in a scope
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum ScopeItem {
     /// `$scope` - Child scope

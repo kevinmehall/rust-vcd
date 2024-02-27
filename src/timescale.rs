@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 /// A unit of time for the `$timescale` command.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature="serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum TimescaleUnit {
     /// Second
     S,
