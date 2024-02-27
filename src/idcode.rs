@@ -80,6 +80,12 @@ impl From<u64> for IdCode {
     }
 }
 
+impl From<IdCode> for u64 {
+    fn from(i: IdCode) -> u64 {
+        i.0
+    }
+}
+
 impl Display for IdCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut i = self.0;
