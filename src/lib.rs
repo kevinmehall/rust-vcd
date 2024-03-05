@@ -318,4 +318,31 @@ impl Header {
             _ => None,
         })
     }
+
+    /// Find the variable object at a specified path.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// let mut parser = vcd::Parser::new(&b"
+    /// $scope module a $end
+    /// $var integer 32 y counter_b $end
+    /// $comment this is a comment $end
+    /// $scope module b $end
+    /// $var integer 16 n0 counter $end
+    /// $var integer 16 n1 counter $end
+    /// $upscope $end
+    /// $upscope $end
+    /// $enddefinitions $end
+    /// "[..]);
+    /// let header = parser.parse_header().unwrap();
+    /// let var_count = header.num_vars();
+    /// assert_eq!(var_count, 3);
+    /// ```
+    pub fn num_vars(&self) -> usize {
+        self.items
+            .iter()
+            .map(ScopeItem::num_vars)
+            .sum()
+    }
 }
